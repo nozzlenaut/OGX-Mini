@@ -63,6 +63,9 @@ bool OledSH1107::begin() {
         // connected screen whose physical jumpers have been set to SPI.
         i2c_deinit(i2c1);
         spi_init(spi1,8000000);
+        // The SH1107's serial timing uses SPI Mode 3 (CPOL=1, CPHA=1).
+        // Without this, an SPI-configured OLED may show only a blank screen.
+        spi_set_format(spi1,8,SPI_CPOL_1,SPI_CPHA_1,SPI_MSB_FIRST);
         gpio_set_function(CLK,GPIO_FUNC_SPI);
         gpio_set_function(MOSI,GPIO_FUNC_SPI);
         gpio_init(DC); gpio_set_dir(DC,GPIO_OUT);
