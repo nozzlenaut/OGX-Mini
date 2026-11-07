@@ -19,6 +19,13 @@
 static_assert((CONFIG_BLUEPAD32_MAX_DEVICES == MAX_GAMEPADS), "Mismatch between BP32 and Gamepad max devices");
 
 namespace bluepad32 {
+#ifdef CONFIG_OGXM_STANDALONE_UI
+// Atomic variables are safe message boxes shared between Pico's two cores.
+static std::atomic<bool> oled_pair_requested{false};
+static std::atomic<bool> oled_controller_connected{false};
+void request_pairing() { oled_pair_requested.store(true); }
+bool controller_connected() { return oled_controller_connected.load(); }
+#endif
 
 static constexpr uint32_t FEEDBACK_TIME_MS = 250;
 static constexpr uint32_t LED_CHECK_TIME_MS = 500;
@@ -110,6 +117,18 @@ static void send_feedback_cb(btstack_timer_source *ts)
 
 static void check_led_cb(btstack_timer_source *ts)
 {
+#ifdef CONFIG_OGXM_STANDALONE_UI
+    // Called on Bluetooth core: disconnect any pad and reopen discovery.
+    // We preserve saved Bluetooth keys, so previous pads may reconnect later.
+    if (oled_pair_requested.exchange(false)) {
+        for (uint8_t i=0; i<MAX_GAMEPADS; ++i) {
+            if (!bt_devices_[i].connected) continue;
+            uni_hid_device_t* pad = uni_hid_device_get_instance_for_idx(i);
+            if (pad) uni_hid_device_disconnect(pad);
+        }
+        uni_bt_enable_new_connections_unsafe(true);
+    }
+#endif
     static bool led_state = false;
 
     led_state = !led_state;
@@ -148,6 +167,9 @@ static void device_disconnected_cb(uni_hid_device_t* device) {
     }
 
     bt_devices_[idx].connected = false;
+#ifdef CONFIG_OGXM_STANDALONE_UI
+    oled_controller_connected.store(any_connected()); // OLED status
+#endif
     bt_devices_[idx].gamepad->reset_pad_in();
 
     if (!led_timer_set_ && !any_connected()) {
@@ -170,6 +192,9 @@ static uni_error_t device_ready_cb(uni_hid_device_t* device) {
     }
 
     bt_devices_[idx].connected = true;
+#ifdef CONFIG_OGXM_STANDALONE_UI
+    oled_controller_connected.store(true); // OLED status
+#endif
 
     if (led_timer_set_) {
         led_timer_set_ = false;

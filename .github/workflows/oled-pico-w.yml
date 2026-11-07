@@ -1,0 +1,43 @@
+name: Build standalone OGX-Mini OLED
+
+on:
+  push:
+    paths:
+      - 'Firmware/RP2040/src/StandaloneUI/**'
+      - 'Firmware/RP2040/src/Bluepad32/**'
+      - 'Firmware/RP2040/src/OGXMini/Board/PicoW.cpp'
+      - 'Firmware/RP2040/src/UserSettings/**'
+      - 'Firmware/RP2040/CMakeLists.txt'
+      - '.github/workflows/oled-pico-w.yml'
+  workflow_dispatch:
+
+jobs:
+  firmware:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Test menu without Pico hardware
+        run: |
+          g++ -std=c++20 -Wall -Wextra -Werror -IFirmware/RP2040/src \
+            Firmware/RP2040/src/StandaloneUI/tests/menu_test.cpp -o /tmp/ogx-menu-test
+          /tmp/ogx-menu-test
+      - name: Install ARM build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build gcc-arm-none-eabi libnewlib-arm-none-eabi libstdc++-arm-none-eabi-newlib python3
+      - name: Download Pico SDK
+        run: git clone --depth 1 --branch 2.1.0 --recurse-submodules https://github.com/raspberrypi/pico-sdk.git
+      - name: Build OLED firmware
+        run: |
+          cmake -S Firmware/RP2040 -B build-oled -G Ninja \
+            -DPICO_SDK_PATH=${{ github.workspace }}/pico-sdk \
+            -DCMAKE_BUILD_TYPE=Release -DOGXM_BOARD=PI_PICOW \
+            -DMAX_GAMEPADS=1 -DOGXM_STANDALONE_UI=ON
+          cmake --build build-oled --parallel 2
+          test -n "$(find build-oled -maxdepth 1 -name '*.uf2' -print -quit)"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ogx-mini-pico-w-oled-UNTESTED
+          path: build-oled/*.uf2

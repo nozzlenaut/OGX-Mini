@@ -280,6 +280,20 @@ if(EN_UART_BRIDGE)
     )
 endif()
 
+# Optional standalone menu. Normal OGX-Mini builds remain unchanged.
+option(OGXM_STANDALONE_UI "Enable Pico W two-button OLED menu" OFF)
+if(OGXM_STANDALONE_UI)
+    if(NOT (OGXM_BOARD STREQUAL "PI_PICOW" OR OGXM_BOARD STREQUAL "PI_PICO2W"))
+        message(FATAL_ERROR "OLED add-on only supports Pico W or Pico 2 W")
+    endif()
+    add_compile_definitions(CONFIG_OGXM_STANDALONE_UI=1)
+    list(APPEND SOURCES_BOARD
+        ${SRC}/StandaloneUI/StandaloneUI.cpp
+        ${SRC}/StandaloneUI/OledSH1107.cpp
+    )
+    list(APPEND LIBS_BOARD hardware_i2c hardware_spi)
+endif()
+
 string(TIMESTAMP CURRENT_DATETIME "%Y-%m-%d %H:%M:%S")
 add_compile_definitions(BUILD_DATETIME="${CURRENT_DATETIME}")
 add_compile_definitions(FIRMWARE_NAME="${FW_NAME}")

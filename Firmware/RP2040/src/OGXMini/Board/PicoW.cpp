@@ -15,6 +15,9 @@
 #include "BLEServer/BLEServer.h"
 #include "Gamepad/Gamepad.h"
 #include "TaskQueue/TaskQueue.h"
+#ifdef CONFIG_OGXM_STANDALONE_UI
+#include "StandaloneUI/StandaloneUI.h" // Optional display/button menu
+#endif
 
 Gamepad _gamepads[MAX_GAMEPADS];
 
@@ -49,6 +52,10 @@ void pico_w::initialize() {
 
     DeviceManager& device_manager = DeviceManager::get_instance();
     device_manager.initialize_driver(user_settings.get_current_driver(), _gamepads);
+#ifdef CONFIG_OGXM_STANDALONE_UI
+    // Start the display and read our saved output choice.
+    standalone_ui::initialize(user_settings.get_current_driver());
+#endif
 }
 
 void pico_w::run() {
@@ -64,6 +71,9 @@ void pico_w::run() {
 
     while (true) {
         TaskQueue::Core0::process_tasks();
+#ifdef CONFIG_OGXM_STANDALONE_UI
+        standalone_ui::poll(); // Quick step; does not replace normal USB loop.
+#endif
 
         for (uint8_t i = 0; i < MAX_GAMEPADS; ++i) {
             device_driver->process(i, _gamepads[i]);

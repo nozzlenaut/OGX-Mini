@@ -211,6 +211,26 @@ bool UserSettings::store_profile_and_driver_type(DeviceDriverType new_driver_typ
     return true;
 }
 
+// This is the same safe procedure used by store_driver_type.
+// Core 1 runs Bluetooth from flash. We must stop it BEFORE writing flash.
+// Save a second value so the OLED can restore the last console after WebApp.
+void UserSettings::enter_webapp_remembering(DeviceDriverType previous_driver)
+{
+    if (!is_valid_driver(previous_driver) ||
+        previous_driver == DeviceDriverType::WEBAPP) {
+        return;
+    }
+
+    board_api::usb::disconnect_all();
+
+    uint8_t last = static_cast<uint8_t>(previous_driver);
+    uint8_t web_mode = static_cast<uint8_t>(DeviceDriverType::WEBAPP);
+    nvs_tool_.write("oled_last", &last, sizeof(last));
+    nvs_tool_.write(DRIVER_TYPE_KEY(), &web_mode, sizeof(web_mode));
+
+    board_api::reboot();
+}
+
 //Disconnects usb and resets pico if it's a new & valid mode, call from core0
 void UserSettings::store_driver_type(DeviceDriverType new_driver) 
 {

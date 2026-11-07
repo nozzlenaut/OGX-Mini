@@ -37,6 +37,8 @@ public:
     uint8_t get_active_profile_id(const uint8_t index);
 
     void store_driver_type(DeviceDriverType new_driver_type);
+    // OLED version: save the previous console output AND enter WebApp safely.
+    void enter_webapp_remembering(DeviceDriverType previous_driver);
     bool store_profile(uint8_t index, const UserProfile& profile);
     bool store_profile_and_driver_type(DeviceDriverType new_driver_type, uint8_t index, const UserProfile& profile);
 
