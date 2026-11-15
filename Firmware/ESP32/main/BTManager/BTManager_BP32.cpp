@@ -134,8 +134,21 @@ void BTManager::controller_data_cb(uni_hid_device_t* bp_device, uni_controller_t
     if (uni_gp->misc_buttons & MISC_BUTTON_SYSTEM)  packet_in.buttons |= mapper.BUTTON_SYS;
     if (uni_gp->misc_buttons & MISC_BUTTON_CAPTURE) packet_in.buttons |= mapper.BUTTON_MISC;
 
-    packet_in.trigger_l = mapper.scale_trigger_l<10>(static_cast<uint16_t>(uni_gp->brake));
-    packet_in.trigger_r = mapper.scale_trigger_r<10>(static_cast<uint16_t>(uni_gp->throttle));
+    // Some 8BitDo / Android-mode parsers expose the triggers as digital
+    // BUTTON_TRIGGER_* values, without populating the analog pedal fields.
+    // Keep normal analog precision; fall back to full press only if no analog
+    // value is present and the matching digital trigger is pressed.
+    constexpr uint16_t FULL_TRIGGER = 1023;
+    uint16_t trigger_l = static_cast<uint16_t>(uni_gp->brake);
+    uint16_t trigger_r = static_cast<uint16_t>(uni_gp->throttle);
+    if (trigger_l == 0 && (uni_gp->buttons & BUTTON_TRIGGER_L)) {
+        trigger_l = FULL_TRIGGER;
+    }
+    if (trigger_r == 0 && (uni_gp->buttons & BUTTON_TRIGGER_R)) {
+        trigger_r = FULL_TRIGGER;
+    }
+    packet_in.trigger_l = mapper.scale_trigger_l<10>(trigger_l);
+    packet_in.trigger_r = mapper.scale_trigger_r<10>(trigger_r);
 
     // auto joy_l = mapper.scale_joystick_l<10>(uni_gp->axis_x, uni_gp->axis_y);
     // auto joy_r = mapper.scale_joystick_r<10>(uni_gp->axis_rx, uni_gp->axis_ry);
