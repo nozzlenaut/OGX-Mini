@@ -3,8 +3,6 @@ name: Verify Xbox bridge firmware
 on:
   pull_request:
     branches: [master]
-  push:
-    branches: [feature/xbox-series-8bitdo-bridge]
   workflow_dispatch:
 
 jobs:
@@ -36,3 +34,20 @@ jobs:
         run: |
           cmake -S Firmware/RP2040 -B build -DPICO_SDK_PATH="${{ github.workspace }}/pico-sdk" -DCMAKE_BUILD_TYPE=Release -DOGXM_BOARD="${{ matrix.board }}" -DMAX_GAMEPADS=1
           cmake --build build -j2
+
+  esp32-build:
+    name: ESP32 Bluetooth firmware
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout and submodules
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install ESP-IDF 5.1.5
+        uses: espressif/install-esp-idf-action@v1
+        with:
+          version: "v5.1.5"
+
+      - name: Compile Bluepad32 / ESP32 firmware
+        run: idf.py -C Firmware/ESP32 build
