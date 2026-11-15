@@ -12,7 +12,6 @@ Firmware for the RP2040, capable of emulating gamepads for several game consoles
 - XInput (use [**UsbdSecPatch**](https://github.com/InvoxiPlayGames/UsbdSecPatch) for Xbox 360, or select the patch in J-Runner while flashing your NAND)
 - Playstation Classic
 - DInput
-- Xbox One / Series X|S **via a separate external converter** accepting Xbox 360 XInput input (not native console authentication; physical compatibility unverified). See [bridge setup and testing](docs/XBOX_ONE_SERIES_BRIDGE.md).
 
 ## Changing platforms
 By default the OGX-Mini will emulate an OG Xbox controller, you must hold a button combo for 3 seconds to change which platform you want to play on. Your chosen mode will persist after powering off the device. 
@@ -20,9 +19,7 @@ By default the OGX-Mini will emulate an OG Xbox controller, you must hold a butt
 Start = Plus (Switch) = Options (Dualsense/DS4)
 
 - XInput
-    - Start + Dpad Up
-- Xbox One / Series converter bridge (same USB XInput reports; external converter required)
-    - Start + Left Bumper + Dpad Up 
+    - Start + Dpad Up 
 - Original Xbox
     - Start + Dpad Right
 - Original Xbox Steel Battalion

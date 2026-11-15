@@ -36,7 +36,6 @@ void DeviceManager::initialize_driver(  DeviceDriverType driver_type,
         case DeviceDriverType::SWITCH:
             device_driver_ = std::make_unique<SwitchDevice>();
             break;
-        case DeviceDriverType::XBOXONE_SERIES_BRIDGE: // An external converter handles Xbox One/Series authentication.
         case DeviceDriverType::XINPUT:
             device_driver_ = std::make_unique<XInputDevice>();
             break;

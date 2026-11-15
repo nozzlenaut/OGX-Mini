@@ -14,7 +14,6 @@ enum class DeviceDriverType : uint8_t
     DINPUT,
     PSCLASSIC,
     SWITCH,
-    XBOXONE_SERIES_BRIDGE, // Xbox 360 XInput via external Xbox One/Series converter
     WEBAPP = 100,
     UART_BRIDGE
 };
@@ -31,7 +30,6 @@ static inline std::string DRIVER_NAME(DeviceDriverType driver)
         case DeviceDriverType::DINPUT: return "DINPUT";
         case DeviceDriverType::PSCLASSIC: return "PS CLASSIC";
         case DeviceDriverType::SWITCH: return "SWITCH";
-        case DeviceDriverType::XBOXONE_SERIES_BRIDGE: return "XBOX ONE/SERIES (CONVERTER)";
         case DeviceDriverType::WEBAPP: return "WEBAPP";
         case DeviceDriverType::UART_BRIDGE: return "UART BRIDGE";
         default: return "UNKNOWN";

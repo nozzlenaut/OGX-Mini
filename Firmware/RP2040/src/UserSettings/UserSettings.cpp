@@ -17,7 +17,6 @@ namespace ButtonCombo {
     static constexpr uint32_t PS3       = BUTTON_COMBO(Gamepad::BUTTON_START, Gamepad::DPAD_LEFT);
     static constexpr uint32_t DINPUT    = BUTTON_COMBO(Gamepad::BUTTON_START | Gamepad::BUTTON_RB, Gamepad::DPAD_LEFT);
     static constexpr uint32_t XINPUT    = BUTTON_COMBO(Gamepad::BUTTON_START, Gamepad::DPAD_UP);
-    static constexpr uint32_t XBOXONE_SERIES_BRIDGE = BUTTON_COMBO(Gamepad::BUTTON_START | Gamepad::BUTTON_LB, Gamepad::DPAD_UP);
     static constexpr uint32_t SWITCH    = BUTTON_COMBO(Gamepad::BUTTON_START, Gamepad::DPAD_DOWN);
     static constexpr uint32_t XBOXOG    = BUTTON_COMBO(Gamepad::BUTTON_START, Gamepad::DPAD_RIGHT);
     static constexpr uint32_t XBOXOG_SB = BUTTON_COMBO(Gamepad::BUTTON_START | Gamepad::BUTTON_RB, Gamepad::DPAD_RIGHT);
@@ -52,7 +51,6 @@ static constexpr DeviceDriverType VALID_DRIVER_TYPES[] = {
     DeviceDriverType::PS3,
     DeviceDriverType::PSCLASSIC, 
     DeviceDriverType::XINPUT,
-    DeviceDriverType::XBOXONE_SERIES_BRIDGE,
     #if defined(XREMOTE_ROM_AVAILABLE)
     DeviceDriverType::XBOXOG_XR,
     #endif
@@ -65,7 +63,7 @@ struct ComboMap {
     DeviceDriverType driver; 
 };
 
-static constexpr std::array<ComboMap, 10> BUTTON_COMBO_MAP = {{
+static constexpr std::array<ComboMap, 9> BUTTON_COMBO_MAP = {{
     { ButtonCombo::XBOXOG,    DeviceDriverType::XBOXOG    },
     { ButtonCombo::XBOXOG_SB, DeviceDriverType::XBOXOG_SB },
     { ButtonCombo::XBOXOG_XR, DeviceDriverType::XBOXOG_XR },
@@ -73,7 +71,6 @@ static constexpr std::array<ComboMap, 10> BUTTON_COMBO_MAP = {{
     { ButtonCombo::DINPUT,    DeviceDriverType::DINPUT    },
     { ButtonCombo::SWITCH,    DeviceDriverType::SWITCH    },
     { ButtonCombo::XINPUT,    DeviceDriverType::XINPUT    },
-    { ButtonCombo::XBOXONE_SERIES_BRIDGE, DeviceDriverType::XBOXONE_SERIES_BRIDGE },
     { ButtonCombo::PS3,       DeviceDriverType::PS3       },
     { ButtonCombo::PSCLASSIC, DeviceDriverType::PSCLASSIC }
 }};

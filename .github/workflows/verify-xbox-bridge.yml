@@ -1,4 +1,4 @@
-name: Verify Xbox bridge firmware
+name: Verify OGX-Mini Bluetooth improvements
 
 on:
   pull_request:
@@ -47,7 +47,7 @@ jobs:
       - name: Publish flashable RP2040 firmware
         uses: actions/upload-artifact@v4
         with:
-          name: ogx-bridge-${{ matrix.board }}
+          name: ogx-bt-${{ matrix.board }}
           path: build/*.uf2
 
   esp32-build:
@@ -72,7 +72,7 @@ jobs:
       - name: Publish ESP32 firmware images
         uses: actions/upload-artifact@v4
         with:
-          name: ogx-bridge-ESP32
+          name: ogx-bt-ESP32
           path: |
             Firmware/ESP32/build/*.bin
             Firmware/ESP32/build/bootloader/bootloader.bin
