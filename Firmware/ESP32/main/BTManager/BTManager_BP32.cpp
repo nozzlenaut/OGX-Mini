@@ -1,3 +1,5 @@
+#include <cstring>
+
 #include "btstack_port_esp32.h"
 #include "btstack_run_loop.h"
 #include "btstack_stdio_esp32.h"
@@ -21,7 +23,11 @@ void BTManager::init_complete_cb(void)
 
 uni_error_t BTManager::device_discovered_cb(bd_addr_t addr, const char* name, uint16_t cod, uint8_t rssi) 
 {
-    if (!((cod & UNI_BT_COD_MINOR_MASK) & UNI_BT_COD_MINOR_GAMEPAD))
+    // Some 8BitDo controllers advertise a generic Bluetooth Class of Device.
+    // Allow Bluepad32 to inspect their actual HID reports before rejecting them.
+    const bool is_8bitdo = name &&
+        (std::strstr(name, "8BitDo") || std::strstr(name, "8bitdo") || std::strstr(name, "8BITDO"));
+    if (!is_8bitdo && !((cod & UNI_BT_COD_MINOR_MASK) & UNI_BT_COD_MINOR_GAMEPAD))
     {
         return UNI_ERROR_IGNORE_DEVICE;
     }
@@ -50,6 +56,8 @@ uni_error_t BTManager::device_ready_cb(uni_hid_device_t* device)
     {
         return UNI_ERROR_IGNORE_DEVICE;
     }
+    OGXM_LOG("BP32: Device ready, index %i, rumble %s\n", idx,
+        device->report_parser.play_dual_rumble ? "supported" : "unavailable");
     manage_connection(static_cast<uint8_t>(idx), true);
     return UNI_ERROR_SUCCESS;
 }
@@ -66,7 +74,12 @@ void BTManager::controller_data_cb(uni_hid_device_t* bp_device, uni_controller_t
     int idx = uni_hid_device_get_idx_for_instance(bp_device);
     uni_gamepad_t *uni_gp = &controller->gamepad;
 
-    if (idx < 0 || idx >= MAX_GAMEPADS || std::memcmp(uni_gp, &prev_uni_gps[idx], sizeof(uni_gamepad_t)) == 0)
+    if (idx < 0 || idx >= MAX_GAMEPADS)
+    {
+        return;
+    }
+    if (!devices_[idx].first_report_pending &&
+        std::memcmp(uni_gp, &prev_uni_gps[idx], sizeof(uni_gamepad_t)) == 0)
     {
         return;
     }
@@ -138,6 +151,7 @@ void BTManager::controller_data_cb(uni_hid_device_t* bp_device, uni_controller_t
     i2c_driver_.write_packet(I2CDriver::MULTI_SLAVE ? packet_in.index + 1 : 0x01, packet_in);
 
     std::memcpy(&prev_uni_gps[idx], uni_gp, sizeof(uni_gamepad_t));
+    devices_[idx].first_report_pending = false;
 }
 
 const uni_property_t* BTManager::get_property_cb(uni_property_idx_t idx) 

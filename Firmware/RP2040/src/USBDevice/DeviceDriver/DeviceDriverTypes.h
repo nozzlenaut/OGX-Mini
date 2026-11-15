@@ -14,6 +14,7 @@ enum class DeviceDriverType : uint8_t
     DINPUT,
     PSCLASSIC,
     SWITCH,
+    XBOXONE_SERIES_BRIDGE, // Xbox 360 XInput via external Xbox One/Series converter
     WEBAPP = 100,
     UART_BRIDGE
 };
