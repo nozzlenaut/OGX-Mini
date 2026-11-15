@@ -5,6 +5,11 @@ on:
     branches: [master]
   workflow_dispatch:
 
+# Restart rather than queue obsolete builds whenever the branch changes.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   rp2040-build:
     name: RP2040 (${{ matrix.board }})
@@ -14,10 +19,12 @@ jobs:
       matrix:
         board: [RP2040_ZERO, ESP32_BLUEPAD32_I2C, PI_PICO]
     steps:
-      - name: Checkout and submodules
+      - name: Checkout source
         uses: actions/checkout@v4
-        with:
-          submodules: recursive
+
+      # Avoid cloning the unrelated BlueRetro/ESP-IDF submodule in every job.
+      - name: Initialize firmware dependencies
+        run: git submodule update --init --recursive Firmware/external/bluepad32 Firmware/external/tinyusb Firmware/external/Pico-PIO-USB Firmware/external/libfixmath
 
       - name: Install ARM compiler
         run: sudo apt-get update && sudo apt-get install -y cmake gcc-arm-none-eabi libnewlib-arm-none-eabi libstdc++-arm-none-eabi-newlib
@@ -41,10 +48,12 @@ jobs:
     name: ESP32 Bluetooth firmware
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout and submodules
+      - name: Checkout source
         uses: actions/checkout@v4
-        with:
-          submodules: recursive
+
+      # Avoid cloning the unrelated BlueRetro/ESP-IDF submodule in every job.
+      - name: Initialize firmware dependencies
+        run: git submodule update --init --recursive Firmware/external/bluepad32 Firmware/external/tinyusb Firmware/external/Pico-PIO-USB Firmware/external/libfixmath
 
       - name: Install ESP-IDF 5.1.5
         uses: espressif/install-esp-idf-action@v1
