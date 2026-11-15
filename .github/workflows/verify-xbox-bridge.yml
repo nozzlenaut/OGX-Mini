@@ -1,0 +1,80 @@
+name: Verify OGX-Mini Bluetooth improvements
+
+on:
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+# Restart rather than queue obsolete builds whenever the branch changes.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  rp2040-build:
+    name: RP2040 (${{ matrix.board }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        board: [RP2040_ZERO, ESP32_BLUEPAD32_I2C, PI_PICO]
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      # Avoid cloning the unrelated BlueRetro/ESP-IDF submodule in every job.
+      - name: Initialize firmware dependencies
+        run: git submodule update --init --recursive Firmware/external/bluepad32 Firmware/external/tinyusb Firmware/external/Pico-PIO-USB Firmware/external/libfixmath
+
+      - name: Install ARM compiler
+        run: sudo apt-get update && sudo apt-get install -y cmake gcc-arm-none-eabi libnewlib-arm-none-eabi libstdc++-arm-none-eabi-newlib
+
+      - name: Get Pico SDK
+        run: git clone --depth 1 --branch 2.1.0 --recurse-submodules https://github.com/raspberrypi/pico-sdk.git pico-sdk
+
+      # pico-sdk 2.1.0 pioasm relies on a transitive uint8_t include
+      # which isn't available with some new Ubuntu host compilers.
+      - name: Fix Pico SDK host-tool header
+        run: |
+          sed -i '1i#include <cstdint>' pico-sdk/tools/pioasm/pio_types.h
+          sed -i '1i#include <cstdint>' pico-sdk/tools/pioasm/output_format.h
+
+      - name: Configure and build
+        run: |
+          cmake -S Firmware/RP2040 -B build -DPICO_SDK_PATH="${{ github.workspace }}/pico-sdk" -DCMAKE_BUILD_TYPE=Release -DOGXM_BOARD="${{ matrix.board }}" -DMAX_GAMEPADS=1
+          cmake --build build -j2
+
+      - name: Publish flashable RP2040 firmware
+        uses: actions/upload-artifact@v4
+        with:
+          name: ogx-bt-${{ matrix.board }}
+          path: build/*.uf2
+
+  esp32-build:
+    name: ESP32 Bluetooth firmware
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      # Avoid cloning the unrelated BlueRetro/ESP-IDF submodule in every job.
+      - name: Initialize firmware dependencies
+        run: git submodule update --init --recursive Firmware/external/bluepad32 Firmware/external/tinyusb Firmware/external/Pico-PIO-USB Firmware/external/libfixmath
+
+      - name: Install ESP-IDF 5.1.5
+        uses: espressif/install-esp-idf-action@v1
+        with:
+          version: "v5.1.5"
+
+      - name: Compile Bluepad32 / ESP32 firmware
+        run: idf.py -C Firmware/ESP32 build
+
+      - name: Publish ESP32 firmware images
+        uses: actions/upload-artifact@v4
+        with:
+          name: ogx-bt-ESP32
+          path: |
+            Firmware/ESP32/build/*.bin
+            Firmware/ESP32/build/bootloader/bootloader.bin
+            Firmware/ESP32/build/partition_table/partition-table.bin
+            Firmware/ESP32/build/flasher_args.json
