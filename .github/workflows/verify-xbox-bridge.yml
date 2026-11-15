@@ -27,6 +27,11 @@ jobs:
       - name: Get Pico SDK
         run: git clone --depth 1 --branch 2.1.0 --recurse-submodules https://github.com/raspberrypi/pico-sdk.git pico-sdk
 
+      # pico-sdk 2.1.0 pioasm relies on a transitive uint8_t include
+      # which isn't available with some new Ubuntu host compilers.
+      - name: Fix Pico SDK host-tool header
+        run: sed -i '1i#include <cstdint>' pico-sdk/tools/pioasm/pio_types.h
+
       - name: Configure and build
         run: |
           cmake -S Firmware/RP2040 -B build -DPICO_SDK_PATH="${{ github.workspace }}/pico-sdk" -DCMAKE_BUILD_TYPE=Release -DOGXM_BOARD="${{ matrix.board }}" -DMAX_GAMEPADS=1
