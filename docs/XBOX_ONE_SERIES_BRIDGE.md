@@ -43,6 +43,7 @@ Fixes in this branch:
 - 8BitDo discovery may proceed even if it advertises a non-gamepad Bluetooth
   Class of Device; Bluepad32 still validates the HID protocol.
 - First gamepad report after each Bluetooth reconnection is always forwarded.
+- Analog triggers retain full resolution; digital-only trigger buttons now map to a full LT/RT press instead of being silently ignored.
 - A ready event logs whether Bluepad32 has a rumble callback, to help distinguish
   a missing software rumble implementation from a missing console feedback report.
 
