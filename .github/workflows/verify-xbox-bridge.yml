@@ -28,7 +28,9 @@ jobs:
       # pico-sdk 2.1.0 pioasm relies on a transitive uint8_t include
       # which isn't available with some new Ubuntu host compilers.
       - name: Fix Pico SDK host-tool header
-        run: sed -i '1i#include <cstdint>' pico-sdk/tools/pioasm/pio_types.h
+        run: |
+          sed -i '1i#include <cstdint>' pico-sdk/tools/pioasm/pio_types.h
+          sed -i '1i#include <cstdint>' pico-sdk/tools/pioasm/output_format.h
 
       - name: Configure and build
         run: |
