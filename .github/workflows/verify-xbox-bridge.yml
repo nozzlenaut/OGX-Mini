@@ -44,6 +44,12 @@ jobs:
           cmake -S Firmware/RP2040 -B build -DPICO_SDK_PATH="${{ github.workspace }}/pico-sdk" -DCMAKE_BUILD_TYPE=Release -DOGXM_BOARD="${{ matrix.board }}" -DMAX_GAMEPADS=1
           cmake --build build -j2
 
+      - name: Publish flashable RP2040 firmware
+        uses: actions/upload-artifact@v4
+        with:
+          name: ogx-bridge-${{ matrix.board }}
+          path: build/*.uf2
+
   esp32-build:
     name: ESP32 Bluetooth firmware
     runs-on: ubuntu-latest
@@ -62,3 +68,13 @@ jobs:
 
       - name: Compile Bluepad32 / ESP32 firmware
         run: idf.py -C Firmware/ESP32 build
+
+      - name: Publish ESP32 firmware images
+        uses: actions/upload-artifact@v4
+        with:
+          name: ogx-bridge-ESP32
+          path: |
+            Firmware/ESP32/build/*.bin
+            Firmware/ESP32/build/bootloader/bootloader.bin
+            Firmware/ESP32/build/partition_table/partition-table.bin
+            Firmware/ESP32/build/flasher_args.json
