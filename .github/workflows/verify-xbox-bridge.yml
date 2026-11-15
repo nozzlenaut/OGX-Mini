@@ -1,0 +1,33 @@
+name: Verify Xbox bridge firmware
+
+on:
+  pull_request:
+    branches: [master]
+  push:
+    branches: [feature/xbox-series-8bitdo-bridge]
+  workflow_dispatch:
+
+jobs:
+  rp2040-build:
+    name: RP2040 (${{ matrix.board }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        board: [RP2040_ZERO, ESP32_BLUEPAD32_I2C, PI_PICO]
+    steps:
+      - name: Checkout and submodules
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install ARM compiler
+        run: sudo apt-get update && sudo apt-get install -y cmake gcc-arm-none-eabi libnewlib-arm-none-eabi libstdc++-arm-none-eabi-newlib
+
+      - name: Get Pico SDK
+        run: git clone --depth 1 --branch 2.1.0 --recurse-submodules https://github.com/raspberrypi/pico-sdk.git pico-sdk
+
+      - name: Configure and build
+        run: |
+          cmake -S Firmware/RP2040 -B build -DPICO_SDK_PATH="${{ github.workspace }}/pico-sdk" -DCMAKE_BUILD_TYPE=Release -DOGXM_BOARD="${{ matrix.board }}" -DMAX_GAMEPADS=1
+          cmake --build build -j2
