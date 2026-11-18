@@ -132,8 +132,7 @@ uni_hid_device_t* BTManager::get_connected_bp32_device(uint8_t index)
 {
     uni_hid_device_t* bp_device = nullptr;
     if (!(bp_device = uni_hid_device_get_instance_for_idx(index)) || 
-        !uni_bt_conn_is_connected(&bp_device->conn) ||
-        !bp_device->report_parser.play_dual_rumble)
+        !uni_bt_conn_is_connected(&bp_device->conn))
     {
         return nullptr;
     }
@@ -164,7 +163,8 @@ void BTManager::send_feedback_cb(void* context)
     FBContext* fb_context = reinterpret_cast<FBContext*>(context);
     uni_hid_device_t* bp_device = nullptr;
 
-    if (!(bp_device = get_connected_bp32_device(fb_context->index)))
+    if (!(bp_device = get_connected_bp32_device(fb_context->index)) ||
+        !bp_device->report_parser.play_dual_rumble)
     {
         return;
     }
@@ -191,9 +191,10 @@ void BTManager::feedback_timer_cb(btstack_timer_source *ts)
 
     for (uint8_t i = 0; i < MAX_GAMEPADS; ++i)
     {
-        if (!get_connected_bp32_device(i))
+        uni_hid_device_t* device = get_connected_bp32_device(i);
+        if (!device || !device->report_parser.play_dual_rumble)
         {
-            continue;
+            continue; // Input and mode switching still work without rumble.
         }
 
         FBContext& fb_context = fb_contexts[i];
@@ -218,6 +219,7 @@ void BTManager::feedback_timer_cb(btstack_timer_source *ts)
 void BTManager::manage_connection(uint8_t index, bool connected)
 {
     devices_[index].connected.store(connected);
+    devices_[index].first_report_pending = true;
     if (connected)
     {
         if (!fb_timer_running_)

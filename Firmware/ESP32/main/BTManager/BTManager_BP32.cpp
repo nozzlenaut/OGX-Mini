@@ -1,3 +1,5 @@
+#include <cstring>
+
 #include "btstack_port_esp32.h"
 #include "btstack_run_loop.h"
 #include "btstack_stdio_esp32.h"
@@ -21,7 +23,11 @@ void BTManager::init_complete_cb(void)
 
 uni_error_t BTManager::device_discovered_cb(bd_addr_t addr, const char* name, uint16_t cod, uint8_t rssi) 
 {
-    if (!((cod & UNI_BT_COD_MINOR_MASK) & UNI_BT_COD_MINOR_GAMEPAD))
+    // Some 8BitDo controllers advertise a generic Bluetooth Class of Device.
+    // Allow Bluepad32 to inspect their actual HID reports before rejecting them.
+    const bool is_8bitdo = name &&
+        (std::strstr(name, "8BitDo") || std::strstr(name, "8bitdo") || std::strstr(name, "8BITDO"));
+    if (!is_8bitdo && !((cod & UNI_BT_COD_MINOR_MASK) & UNI_BT_COD_MINOR_GAMEPAD))
     {
         return UNI_ERROR_IGNORE_DEVICE;
     }
@@ -50,6 +56,8 @@ uni_error_t BTManager::device_ready_cb(uni_hid_device_t* device)
     {
         return UNI_ERROR_IGNORE_DEVICE;
     }
+    OGXM_LOG("BP32: Device ready, index %i, rumble %s\n", idx,
+        device->report_parser.play_dual_rumble ? "supported" : "unavailable");
     manage_connection(static_cast<uint8_t>(idx), true);
     return UNI_ERROR_SUCCESS;
 }
@@ -66,7 +74,12 @@ void BTManager::controller_data_cb(uni_hid_device_t* bp_device, uni_controller_t
     int idx = uni_hid_device_get_idx_for_instance(bp_device);
     uni_gamepad_t *uni_gp = &controller->gamepad;
 
-    if (idx < 0 || idx >= MAX_GAMEPADS || std::memcmp(uni_gp, &prev_uni_gps[idx], sizeof(uni_gamepad_t)) == 0)
+    if (idx < 0 || idx >= MAX_GAMEPADS)
+    {
+        return;
+    }
+    if (!devices_[idx].first_report_pending &&
+        std::memcmp(uni_gp, &prev_uni_gps[idx], sizeof(uni_gamepad_t)) == 0)
     {
         return;
     }
@@ -121,8 +134,21 @@ void BTManager::controller_data_cb(uni_hid_device_t* bp_device, uni_controller_t
     if (uni_gp->misc_buttons & MISC_BUTTON_SYSTEM)  packet_in.buttons |= mapper.BUTTON_SYS;
     if (uni_gp->misc_buttons & MISC_BUTTON_CAPTURE) packet_in.buttons |= mapper.BUTTON_MISC;
 
-    packet_in.trigger_l = mapper.scale_trigger_l<10>(static_cast<uint16_t>(uni_gp->brake));
-    packet_in.trigger_r = mapper.scale_trigger_r<10>(static_cast<uint16_t>(uni_gp->throttle));
+    // Some 8BitDo / Android-mode parsers expose the triggers as digital
+    // BUTTON_TRIGGER_* values, without populating the analog pedal fields.
+    // Keep normal analog precision; fall back to full press only if no analog
+    // value is present and the matching digital trigger is pressed.
+    constexpr uint16_t FULL_TRIGGER = 1023;
+    uint16_t trigger_l = static_cast<uint16_t>(uni_gp->brake);
+    uint16_t trigger_r = static_cast<uint16_t>(uni_gp->throttle);
+    if (trigger_l == 0 && (uni_gp->buttons & BUTTON_TRIGGER_L)) {
+        trigger_l = FULL_TRIGGER;
+    }
+    if (trigger_r == 0 && (uni_gp->buttons & BUTTON_TRIGGER_R)) {
+        trigger_r = FULL_TRIGGER;
+    }
+    packet_in.trigger_l = mapper.scale_trigger_l<10>(trigger_l);
+    packet_in.trigger_r = mapper.scale_trigger_r<10>(trigger_r);
 
     // auto joy_l = mapper.scale_joystick_l<10>(uni_gp->axis_x, uni_gp->axis_y);
     // auto joy_r = mapper.scale_joystick_r<10>(uni_gp->axis_rx, uni_gp->axis_ry);
@@ -138,6 +164,7 @@ void BTManager::controller_data_cb(uni_hid_device_t* bp_device, uni_controller_t
     i2c_driver_.write_packet(I2CDriver::MULTI_SLAVE ? packet_in.index + 1 : 0x01, packet_in);
 
     std::memcpy(&prev_uni_gps[idx], uni_gp, sizeof(uni_gamepad_t));
+    devices_[idx].first_report_pending = false;
 }
 
 const uni_property_t* BTManager::get_property_cb(uni_property_idx_t idx) 

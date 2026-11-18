@@ -2,6 +2,7 @@
 #define _DEVICE_DRIVER_TYPES_H_
 
 #include <cstdint>
+#include <string>
 
 enum class DeviceDriverType : uint8_t
 {
@@ -14,6 +15,9 @@ enum class DeviceDriverType : uint8_t
     DINPUT,
     PSCLASSIC,
     SWITCH,
+    WIIU = 9,
+    PS4 = 15,
+    STEAM = 16,
     WEBAPP = 100,
     UART_BRIDGE
 };
@@ -30,6 +34,9 @@ static inline std::string DRIVER_NAME(DeviceDriverType driver)
         case DeviceDriverType::DINPUT: return "DINPUT";
         case DeviceDriverType::PSCLASSIC: return "PS CLASSIC";
         case DeviceDriverType::SWITCH: return "SWITCH";
+        case DeviceDriverType::WIIU: return "WII U";
+        case DeviceDriverType::PS4: return "PS4 (AUTH REQUIRED)";
+        case DeviceDriverType::STEAM: return "STEAM";
         case DeviceDriverType::WEBAPP: return "WEBAPP";
         case DeviceDriverType::UART_BRIDGE: return "UART BRIDGE";
         default: return "UNKNOWN";

@@ -16,6 +16,9 @@ static constexpr uint32_t BUTTON_COMBO(const uint16_t& buttons, const uint8_t& d
 
 namespace ButtonCombo 
 {
+    static constexpr uint32_t WIIU      = BUTTON_COMBO(Gamepad::BUTTON_START | Gamepad::BUTTON_LB, Gamepad::DPAD_DOWN);
+    static constexpr uint32_t PS4       = BUTTON_COMBO(Gamepad::BUTTON_START | Gamepad::BUTTON_LB, Gamepad::DPAD_LEFT);
+    static constexpr uint32_t STEAM     = BUTTON_COMBO(Gamepad::BUTTON_START | Gamepad::BUTTON_LB, Gamepad::DPAD_UP);
     static constexpr uint32_t PS3       = BUTTON_COMBO(Gamepad::BUTTON_START, Gamepad::DPAD_LEFT);
     static constexpr uint32_t DINPUT    = BUTTON_COMBO(Gamepad::BUTTON_START | Gamepad::BUTTON_RB, Gamepad::DPAD_LEFT);
     static constexpr uint32_t XINPUT    = BUTTON_COMBO(Gamepad::BUTTON_START, Gamepad::DPAD_UP);
@@ -42,12 +45,15 @@ static constexpr DeviceDriverType VALID_DRIVER_TYPES[] =
     DeviceDriverType::PS3,
     DeviceDriverType::PSCLASSIC, 
     DeviceDriverType::XINPUT,
+    DeviceDriverType::WIIU,
+    DeviceDriverType::PS4,
+    DeviceDriverType::STEAM,
 
 #endif
 };
 
 struct ComboMap { uint32_t combo; DeviceDriverType driver; };
-static constexpr std::array<ComboMap, 9> BUTTON_COMBO_MAP = 
+static constexpr std::array<ComboMap, 12> BUTTON_COMBO_MAP =
 {{
     { ButtonCombo::XBOXOG,    DeviceDriverType::XBOXOG    },
     { ButtonCombo::XBOXOG_SB, DeviceDriverType::XBOXOG_SB },
@@ -57,7 +63,10 @@ static constexpr std::array<ComboMap, 9> BUTTON_COMBO_MAP =
     { ButtonCombo::SWITCH,    DeviceDriverType::SWITCH    },
     { ButtonCombo::XINPUT,    DeviceDriverType::XINPUT    },
     { ButtonCombo::PS3,       DeviceDriverType::PS3       },
-    { ButtonCombo::PSCLASSIC, DeviceDriverType::PSCLASSIC }
+    { ButtonCombo::PSCLASSIC, DeviceDriverType::PSCLASSIC },
+    { ButtonCombo::WIIU, DeviceDriverType::WIIU },
+    { ButtonCombo::PS4, DeviceDriverType::PS4 },
+    { ButtonCombo::STEAM, DeviceDriverType::STEAM }
 }};
 
 const std::string UserSettings::INIT_FLAG_KEY()
@@ -197,7 +206,10 @@ void UserSettings::store_driver_type(DeviceDriverType new_driver_type)
     }
 
     uint8_t new_driver = static_cast<uint8_t>(new_driver_type);
-    nvs_helper_.write(DRIVER_TYPE_KEY(), &new_driver, sizeof(new_driver));
+    if (nvs_helper_.write(DRIVER_TYPE_KEY(), &new_driver, sizeof(new_driver)) == ESP_OK)
+    {
+        current_driver_ = new_driver_type;
+    }
 }
 
 void UserSettings::store_profile(const uint8_t index, UserProfile& profile)

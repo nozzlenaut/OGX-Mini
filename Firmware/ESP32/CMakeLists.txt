@@ -9,15 +9,15 @@ set(BTSTACK_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/components/btstack)
 
 include(${CMAKE_CURRENT_SOURCE_DIR}/../FWDefines.cmake)
 include(${EXTERNAL_CMAKE_DIR}/init_submodules.cmake)
-include(${EXTERNAL_CMAKE_DIR}/patch_libs.cmake)
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/patch_legacy_bt.cmake)
 include(${EXTERNAL_CMAKE_DIR}/generate_gatt_header.cmake)
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/integrate_btstack.cmake)
 
 init_git_submodules(${EXTERNAL_DIR}
-    ${EXTERNAL_DIR}/bluepad32
+    ${EXTERNAL_DIR}/bluepad32_esp32
     ${EXTERNAL_DIR}/libfixmath
 )
-apply_lib_patches(${EXTERNAL_DIR})
+apply_legacy_bt_patches(${EXTERNAL_DIR})
 integrate_btstack(${EXTERNAL_DIR})
 generate_gatt_header(
     ${BTSTACK_ROOT} 
@@ -25,7 +25,7 @@ generate_gatt_header(
     ${CMAKE_CURRENT_SOURCE_DIR}/main/BLEServer/att_delayed_response.h
     )
 
-set(BLUEPAD32_ROOT ${EXTERNAL_DIR}/bluepad32/src/components/bluepad32)
+set(BLUEPAD32_ROOT ${EXTERNAL_DIR}/bluepad32_esp32/src/components/bluepad32)
 
 if(NOT EXISTS ${BLUEPAD32_ROOT})
     message(FATAL_ERROR "External directory not found: ${BLUEPAD32_ROOT}")

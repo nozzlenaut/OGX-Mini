@@ -6,7 +6,7 @@ function(integrate_btstack EXTERNAL_DIR)
     endif()
 
     set(PROJECT_COMPONENTS ${CMAKE_CURRENT_LIST_DIR}/components)
-    set(BTSTACK_DIR ${EXTERNAL_DIR}/bluepad32/external/btstack)
+    set(BTSTACK_DIR ${EXTERNAL_DIR}/bluepad32_esp32/external/btstack)
     set(PROJECT_BTSTACK ${PROJECT_COMPONENTS}/btstack)
     
     if (NOT EXISTS ${PROJECT_COMPONENTS})
@@ -33,7 +33,7 @@ function(integrate_btstack EXTERNAL_DIR)
         message(STATUS "Integrating BTStack with project")
         execute_process(
             COMMAND ${Python3_EXECUTABLE} ${BTSTACK_SCRIPT_PATH} ${BTSTACK_DIR} ${PROJECT_COMPONENTS}
-            WORKING_DIRECTORY ${BTSTACK_SCRIPT_PATH}/..
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
             RESULT_VARIABLE PYTHON_RESULT
             OUTPUT_VARIABLE PYTHON_OUTPUT
             ERROR_VARIABLE PYTHON_ERROR
@@ -42,7 +42,7 @@ function(integrate_btstack EXTERNAL_DIR)
         if(PYTHON_RESULT EQUAL 0)
             message(STATUS "BTStack integration successful:\n${PYTHON_OUTPUT}")
         else()
-            message(FATAL_ERROR "BTStack integration failed:\n${PYTHON_ERROR}")
+            message(FATAL_ERROR "BTStack integration failed:\n${PYTHON_ERROR}\n${PYTHON_OUTPUT}")
         endif()
     endif()
     
