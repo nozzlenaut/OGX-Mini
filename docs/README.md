@@ -15,3 +15,7 @@ These documents are **informational / planning** surveys. For day-to-day use (mo
 **Architecture / extending drivers:** [Firmware_Architecture.md](../Firmware/RP2040/docs/Firmware_Architecture.md)  
 **Project overview / build:** [README.md](../README.md)  
 **Release history:** [CHANGELOG.md](../CHANGELOG.md)
+
+## PS4 credentials (experimental hybrid)
+- [Offline credential setup page](ps4-auth.html) — download and open locally in Chrome or Edge.
+- [Provisioning and test guide](PS4-LOCAL-AUTH.md)

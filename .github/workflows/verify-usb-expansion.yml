@@ -2,7 +2,7 @@ name: Verify OGX-Mini USB expansion
 
 on:
   pull_request:
-    branches: [master]
+    branches: [master, feature/usb-console-expansion]
   workflow_dispatch:
 
 # Restart rather than queue obsolete builds whenever the branch changes.
@@ -38,6 +38,9 @@ jobs:
         run: |
           sed -i '1i#include <cstdint>' pico-sdk/tools/pioasm/pio_types.h
           sed -i '1i#include <cstdint>' pico-sdk/tools/pioasm/output_format.h
+
+      - name: Verify offline credential tool using synthetic keys
+        run: node --test tests/test_ps4_provision.mjs
 
       - name: Configure and build
         run: |

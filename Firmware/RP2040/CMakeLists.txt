@@ -188,6 +188,11 @@ elseif(OGXM_BOARD STREQUAL "ESP32_BLUEPAD32_I2C")
     add_compile_definitions(CONFIG_OGXM_BOARD_ESP32_BLUEPAD32_I2C=1)
     set(EN_ESP32 TRUE)
     set(EN_UART_BRIDGE TRUE)
+    # Enable credential-based PS4 authentication on our 2 MiB hybrid only.
+    add_compile_definitions(OGXM_PS4_LOCAL_AUTH=1)
+    set(PICO_MBEDTLS_CONFIG_FILE "${SRC}/USBDevice/DeviceDriver/PS4/AuthMbedtlsConfig.h")
+    list(APPEND SOURCES_BOARD ${SRC}/USBDevice/DeviceDriver/PS4/LocalAuth.cpp)
+    list(APPEND LIBS_BOARD pico_mbedtls)
 
     if(OGXM_RETAIL STREQUAL "TRUE")
         message(STATUS "Retail mode enabled.")
@@ -628,3 +633,11 @@ endif()
 set_target_properties(${FW_NAME} PROPERTIES OUTPUT_NAME ${EXE_FILENAME})
 
 pico_add_extra_outputs(${FW_NAME})
+
+if(OGXM_BOARD STREQUAL "ESP32_BLUEPAD32_I2C")
+    find_package(Python3 REQUIRED COMPONENTS Interpreter)
+    add_custom_command(TARGET ${FW_NAME} POST_BUILD
+        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_LIST_DIR}/../../tools/ps4-auth/check_firmware.py
+            ${CMAKE_CURRENT_BINARY_DIR}/${EXE_FILENAME}.uf2
+        VERBATIM)
+endif()

@@ -18,6 +18,11 @@
 #include "Gamepad/Gamepad.h"
 #include "Gamepad/I2CWirePad.h"
 #include "TaskQueue/TaskQueue.h"
+#if defined(OGXM_PS4_LOCAL_AUTH)
+#include "USBDevice/DeviceDriver/PS4/LocalAuth.h"
+// Separate SRAM stack for RSA; scratch X is only 4 KiB on RP2040.
+alignas(8) static uint32_t auth_worker_stack[4096];
+#endif
 
 enum class PacketID : uint8_t { 
     UNKNOWN = 0, 
@@ -124,6 +129,9 @@ static void core1_task() {
     OGXM_LOG("I2C Driver initialized\n");
 
     while (true) {
+#if defined(OGXM_PS4_LOCAL_AUTH)
+        PS4LocalAuth::worker();
+#endif
         tight_loop_contents();
     }
 }
@@ -175,7 +183,12 @@ void esp32_bp32_i2c::run() {
     }
 
     multicore_reset_core1();
-    multicore_launch_core1(core1_task);
+    #if defined(OGXM_PS4_LOCAL_AUTH)
+    if (PS4LocalAuth::available())
+        multicore_launch_core1_with_stack(core1_task, auth_worker_stack, sizeof(auth_worker_stack));
+    else
+    #endif
+        multicore_launch_core1(core1_task);
 
     esp32_api::reset();
 
