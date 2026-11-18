@@ -53,7 +53,7 @@ static constexpr DeviceDriverType VALID_DRIVER_TYPES[] =
 };
 
 struct ComboMap { uint32_t combo; DeviceDriverType driver; };
-static constexpr std::array<ComboMap, 12> BUTTON_COMBO_MAP = 
+static constexpr std::array<ComboMap, 12> BUTTON_COMBO_MAP =
 {{
     { ButtonCombo::XBOXOG,    DeviceDriverType::XBOXOG    },
     { ButtonCombo::XBOXOG_SB, DeviceDriverType::XBOXOG_SB },
