@@ -37,6 +37,7 @@ private:
     struct Device
     {
         std::atomic<bool> connected{false};
+        bool first_report_pending{true}; // Forward first report after each reconnect.
         GamepadMapper mapper;
         I2CDriver::PacketIn packet_in;
         std::atomic<I2CDriver::PacketOut> packet_out; //Can be updated from i2c thread
