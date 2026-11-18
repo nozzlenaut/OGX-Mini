@@ -37,3 +37,10 @@ Build success is not console verification. Check enumeration, mapping, analog st
 - Upstream merge completed without conflicts; imported tree compared against local Git merge.
 - Existing ESP32 patch reapplied cleanly; Git whitespace check passed.
 - Firmware compilation and console hardware testing not yet confirmed.
+
+## Hybrid bring-up (2026-11-18)
+- Existing USB expansion build passed for RP2040 Zero and ESP32 I2C RP2040 target, but failed on ESP32 BTstack configuration and Pico W. Focus CI on the actual hybrid rather than the unrelated Pico W for this iteration.
+- Restored the known-compiling ESP32 IDF 5.1.5 configuration and pinned the original Bluepad32/BTstack in a separate submodule; the newer RP2040/Pico W dependencies stay untouched. No board or wiring changes. If rebuilding from a previous tree, remove generated ESP32 components/btstack and build directory first (they are generated, not source).
+- Added actual ESP32 mode selection: Start+LB+Down = Wii U; Start+LB+Left = PS4 DS4 profile (auth required); Start+LB+Up = Steam. Hold for the normal three seconds. Numeric IDs match RP2040 and a regression test checks the mapping. PS4 authentication remains unimplemented.
+- Hybrid input transport remains 32-byte I2C packets; motion and touchpad data are not carried on this legacy link. Do not claim motion/touchpad functionality on this hardware.
+- Build verification pending on this commit; physical tests remain necessary.

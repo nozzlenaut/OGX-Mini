@@ -73,16 +73,21 @@ static constexpr DeviceDriverType VALID_DRIVER_TYPES[] = {
     DeviceDriverType::DINPUT, 
     DeviceDriverType::SWITCH, 
     DeviceDriverType::WIIU,
+#if !defined(CONFIG_OGXM_BOARD_ESP32_BLUEPAD32_I2C)
     DeviceDriverType::WII,
+#endif
     DeviceDriverType::WEBAPP,
     DeviceDriverType::PS3,
     DeviceDriverType::PS4,
     DeviceDriverType::STEAM,
     DeviceDriverType::PSCLASSIC,
+    // The hybrid's console-facing port is USB; GPIO outputs conflict with its wiring.
+#if !defined(CONFIG_OGXM_BOARD_ESP32_BLUEPAD32_I2C)
     DeviceDriverType::PS1PS2,
     DeviceDriverType::GAMECUBE,
     DeviceDriverType::DREAMCAST,
     DeviceDriverType::N64,
+#endif
     DeviceDriverType::XINPUT,
     #if defined(XREMOTE_ROM_AVAILABLE)
     DeviceDriverType::XBOXOG_XR,

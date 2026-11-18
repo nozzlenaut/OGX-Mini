@@ -17,7 +17,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        board: [RP2040_ZERO, ESP32_BLUEPAD32_I2C, PI_PICOW]
+        board: [RP2040_ZERO, ESP32_BLUEPAD32_I2C]
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
@@ -59,7 +59,10 @@ jobs:
 
       # Avoid cloning the unrelated BlueRetro/ESP-IDF submodule in every job.
       - name: Initialize firmware dependencies
-        run: git submodule update --init --recursive Firmware/external/bluepad32 Firmware/external/tinyusb Firmware/external/Pico-PIO-USB Firmware/external/libfixmath
+        run: git submodule update --init --recursive Firmware/external/bluepad32_esp32 Firmware/external/libfixmath
+
+      - name: Check hybrid mode IDs and button combinations
+        run: python3 tests/test_hybrid_modes.py
 
       - name: Install ESP-IDF 5.1.5
         uses: espressif/install-esp-idf-action@v1

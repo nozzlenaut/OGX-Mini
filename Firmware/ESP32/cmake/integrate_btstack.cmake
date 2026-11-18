@@ -6,7 +6,7 @@ function(integrate_btstack EXTERNAL_DIR)
     endif()
 
     set(PROJECT_COMPONENTS ${CMAKE_CURRENT_LIST_DIR}/components)
-    set(BTSTACK_DIR ${EXTERNAL_DIR}/bluepad32/external/btstack)
+    set(BTSTACK_DIR ${EXTERNAL_DIR}/bluepad32_esp32/external/btstack)
     set(PROJECT_BTSTACK ${PROJECT_COMPONENTS}/btstack)
     
     if (NOT EXISTS ${PROJECT_COMPONENTS})
