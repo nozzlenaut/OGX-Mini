@@ -35,8 +35,10 @@ void tuh_mount_cb(uint8_t dev_addr) {
         } else {
             board_api::set_rgb(128, 0, 255); // Purple: paired PID 201B
         }
-    } else if (!HostManager::get_instance().any_mounted()) {
-        board_api::set_rgb(255, 255, 255); // White: other enumerated device
+    } else {
+        // Report an unexpected VID/PID even if a generic XInput/HID driver
+        // already mounted it. The previous any_mounted() check hid this.
+        board_api::set_rgb(255, 255, 255); // White: OTHER VID/PID
     }
 }
 
