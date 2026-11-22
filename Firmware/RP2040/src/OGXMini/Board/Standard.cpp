@@ -29,6 +29,11 @@ void core1_task() {
         sleep_ms(100);
     }
 
+    // Diagnostic: blue means the host saw a D+/D- pull-up and reached
+    // TinyUSB host initialization. Red means no physical USB signal.
+#if defined(CONFIG_OGXM_BOARD_RP2040_ZERO)
+    board_api::set_rgb(0, 0, 255);
+#endif
     pio_usb_configuration_t pio_cfg = PIO_USB_CONFIG;
     tuh_configure(BOARD_TUH_RHPORT, TUH_CFGID_RPI_PIO_USB_CONFIGURATION, &pio_cfg);
 
