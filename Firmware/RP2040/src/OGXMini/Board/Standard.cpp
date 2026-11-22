@@ -68,17 +68,28 @@ void set_gp_check_timer(uint32_t task_id) {
 //Called by tusb host so we know to connect or disconnect usb
 void standard::host_mounted(bool host_mounted) {
     static std::atomic<bool> tud_is_inited = false;
+
+#if !defined(CONFIG_OGXM_BOARD_RP2040_ZERO)
+    // Regular firmware: green/red indicates a connected gamepad.
     board_api::set_led(host_mounted);
+#endif
 
     if (!host_mounted && tud_is_inited.load()) {
+#if !defined(CONFIG_OGXM_BOARD_RP2040_ZERO)
         TaskQueue::Core0::queue_task([]() {
             OGXM_LOG("USB disconnected, rebooting.\n");
             board_api::usb::disconnect_all();
             board_api::reboot();
         });
+#else
+        // Diagnostic only: do not reboot on ANY USB device disconnect.
+        // 8BitDo can re-enumerate and may show an unexpected PID; USB
+        // diagnostics should not require knowing its VID/PID in advance.
+        // Also do not override the LED colors set by tuh_mount_cb.
+#endif
     } else if (!tud_is_inited.load()) {
-        TaskQueue::Core0::queue_task([]() { 
-            tud_init(BOARD_TUD_RHPORT); 
+        TaskQueue::Core0::queue_task([]() {
+            tud_init(BOARD_TUD_RHPORT);
             tud_is_inited.store(true);
         });
     }
