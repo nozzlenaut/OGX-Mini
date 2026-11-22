@@ -30,6 +30,7 @@
 | Timing | Busy loop in `set_config` awaiting USB OUT | Nonblocking stage machine on TinyUSB host core; 10ms between successful commands |
 | Errors | IN transfer errors could forward stale buffers; unchecked pointer | Receiver IN errors rearm without forwarding invalid data; null pointer guarded |
 | Virtual key | Didn't ACK GIP virtual-key messages | Queues the xpad 13-byte GIP ACK, higher priority than init |
+| Input report parsing | Compared `&prev_in_report_ + 4` against `in_report + 4` (four whole structures; undefined, out-of-bounds) | Compare 14 bytes after the 4-byte GIP header; initialize previous report buffer; reject short transfers |
 | PID flip | Input unmount could reboot entire RP2040 | Ignore full-board reboot for the two known receiver PIDs; re-enumeration handled normally |
 | Xbox wired | Known-good | Old USB input behavior preserved for non-8BitDo devices |
 
