@@ -23,11 +23,20 @@ void core1_task() {
     HostManager& host_manager = HostManager::get_instance();
     host_manager.initialize(_gamepads);
 
-    //Pico-PIO-USB will not reliably detect a hot plug on some boards, 
-    //monitor and init host stack after connection
+    // Unlike a wired gamepad, some 2.4GHz receivers electrically detach
+    // their USB interface while the wireless controller is off, then
+    // attach when the controller links. The previous 100ms polling loop
+    // delayed host initialization until the receiver asserted D+/D-;
+    // that can miss a brief attach/reconnect during receiver handshaking.
+    //
+    // On the RP2040 Zero test target, arm PIO-USB *before* the dongle
+    // connects so the host can service connection transitions immediately.
+    // Preserve the original attach-first workaround for all other boards.
+#if !defined(CONFIG_OGXM_BOARD_RP2040_ZERO)
     while(!board_api::usb::host_connected()) {
         sleep_ms(100);
     }
+#endif
 
     pio_usb_configuration_t pio_cfg = PIO_USB_CONFIG;
     tuh_configure(BOARD_TUH_RHPORT, TUH_CFGID_RPI_PIO_USB_CONFIGURATION, &pio_cfg);

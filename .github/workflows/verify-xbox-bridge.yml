@@ -1,8 +1,10 @@
 name: Verify OGX-Mini Bluetooth improvements
 
 on:
+  push:
+    branches: ['experiment/8bitdo-eager-usb-host']
   pull_request:
-    branches: [master, 'feature/xbox-series-8bitdo-bridge', 'feature/original-wired-8bitdo']
+    branches: [master, 'feature/xbox-series-8bitdo-bridge', 'feature/original-wired-8bitdo', 'feature/8bitdo-xpad-gip-init']
   workflow_dispatch:
 
 # Restart rather than queue obsolete builds whenever the branch changes.
