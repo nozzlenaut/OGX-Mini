@@ -43,6 +43,9 @@ void core1_task() {
     while (true) {
         TaskQueue::Core1::process_tasks();
         tuh_task();
+        // Non-blocking Linux-xpad-style GIP init for 8BitDo 3-Mode receiver.
+        // Runs in the same core as TinyUSB host, never blocks USB frames.
+        tuh_xinput::service_8bitdo_receiver();
     }
 }
 
