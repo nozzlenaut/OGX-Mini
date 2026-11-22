@@ -438,7 +438,14 @@ static bool xfer_cb(uint8_t dev_addr, uint8_t ep_addr, xfer_result_t result, uin
                         }
                         break;
                     case XboxOne::GIP_CMD_ANNOUNCE:
-                        xboxone_init(interface, dev_addr, instance);
+                        // The receiver may send ANNOUNCE while pairing.
+                        // Do not launch the old blocking POWER_ON+S_INIT
+                        // sequence: its Linux-xpad-style init is already
+                        // scheduled in service_8bitdo_receiver().
+                        if (!interface->is_8bitdo_receiver)
+                        {
+                            xboxone_init(interface, dev_addr, instance);
+                        }
                         break;
                 }
                 break;
