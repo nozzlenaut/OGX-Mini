@@ -2,7 +2,7 @@ name: Verify OGX-Mini USB expansion
 
 on:
   pull_request:
-    branches: [master]
+    branches: [master, 'feature/usb-console-expansion']
   workflow_dispatch:
 
 # Restart rather than queue obsolete builds whenever the branch changes.
@@ -63,6 +63,11 @@ jobs:
 
       - name: Check hybrid mode IDs and button combinations
         run: python3 tests/test_hybrid_modes.py
+
+      - name: Test 8BitDo 3-Mode receiver identification
+        run: |
+          g++ -std=c++17 -Wall -Wextra -Werror -I. tests/test_8bitdo_3mode_usb.cpp -o /tmp/ogx-8bitdo-id-test
+          /tmp/ogx-8bitdo-id-test
 
       - name: Install ESP-IDF 5.1.5
         uses: espressif/install-esp-idf-action@v1
