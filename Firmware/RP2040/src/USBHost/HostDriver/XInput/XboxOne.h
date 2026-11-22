@@ -17,7 +17,8 @@ public:
     bool send_feedback(Gamepad& gamepad, uint8_t address, uint8_t instance) override;
 
 private:
-    XboxOne::InReport prev_in_report_;
+    XboxOne::InReport prev_in_report_{};
+    bool previous_report_valid_{false};
 };
 
 #endif // _XBOX_ONE_HOST_H_
