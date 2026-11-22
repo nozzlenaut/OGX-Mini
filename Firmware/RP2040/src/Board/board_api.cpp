@@ -50,6 +50,16 @@ void set_led(bool state) {
     mutex_exit(&gpio_mutex_);
 }
 
+// Set the WS2812 to a distinct diagnostic color without changing the
+// existing red/green controller-connected LED path.
+void set_rgb(uint8_t r, uint8_t g, uint8_t b) {
+    mutex_enter_blocking(&gpio_mutex_);
+    if (board_api_rgb::set_led) {
+        board_api_rgb::set_led(r, g, b);
+    }
+    mutex_exit(&gpio_mutex_);
+}
+
 void reboot() {
     #define AIRCR_REG (*((volatile uint32_t *)(0xE000ED0C)))
     #define AIRCR_SYSRESETREQ (1 << 2)
