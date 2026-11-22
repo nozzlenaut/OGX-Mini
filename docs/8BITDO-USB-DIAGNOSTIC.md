@@ -12,10 +12,10 @@ The 8BitDo Ultimate 3-Mode Xbox dongle can re-enumerate from `2DC8:200F` while w
 | --- | --- |
 | **Red** at boot | No D+/D- USB connection detected yet; the code is still waiting to start the host stack |
 | **Blue** | USB electrical attach detected, host stack initialization started, but USB enumeration / gamepad driver mounting hasn't finished |
-| **Orange** | Receiver enumerated as `2DC8:200F` (waiting/connecting), but a gamepad driver has not mounted |
-| **Purple** | Receiver enumerated as `2DC8:201B` (wireless controller attached), but gamepad driver has not mounted |
+| **Orange** | Receiver enumerated as `2DC8:200F` (waiting/connecting), even if an input driver has mounted |
+| **Purple** | Receiver enumerated as `2DC8:201B` (connected USB identity), even if an input driver has mounted |
 | **White** | Other USB device enumerated, but no gamepad driver mounted |
-| **Green (usual connected color)** | Gamepad driver mounted; this alone does not prove button input or wireless pairing |
+| **Green (usual connected color)** | Non-8BitDo gamepad driver mounted; this alone does not prove input |
 
 Note: some board LED implementations/firmware versions may swap red and green channels; use a known working Xbox One wired pad as a reference. If flashing this diagnostic firmware, capture the LED color *with the dongle plugged in*, then again when the controller is switched to 2.4 GHz mode. If nothing changes from the boot LED, the issue is below the controller driver (USB electrical detection/power, startup, or host enumeration).
 
@@ -26,6 +26,21 @@ Note: some board LED implementations/firmware versions may swap red and green ch
 - First confirm the RGB changes using the **known-working wired Xbox One controller**, then remove the controller and power-cycle the Zero to reset the host.
 - Plug the 8BitDo receiver into the USB-A host port **before** powering the Zero; observe color. Repeat with hotplug after boot if necessary. Keep the 8BitDo controller set to the proper 2.4 GHz/PC position.
 - No need to re-pair the already paired dongle with a PC each time. If the dongle powers on and pairs on PC, the USB detection on the OGX host remains the issue.
+
+
+## Follow-up: blue/green loop every two seconds
+
+The first diagnostic build masked 8BitDo USB PIDs in the LED callback when an XInput driver had mounted. Its green indicator could therefore mean either `200F` or `201B`. Also, the original `standard::host_mounted(false)` restarts the entire RP2040 on any driver disconnect. That can interrupt receiver PID switching.
+
+This revision keeps the RP2040 USB host running across **only known 8BitDo receiver (200F/201B) disconnects**, and shows **orange or purple even when an XInput driver mounted**. Wired Xbox controller disconnect behavior is unchanged.
+
+- **Orange to blue repeatedly:** receiver is enumerating as waiting/unpaired, then disconnecting; no `201B` seen yet
+- **Orange to purple:** receiver reached connected USB PID; test controller input and rumble
+- **Purple to blue repeatedly:** the paired receiver enumerates but repeatedly drops from USB; investigate GIP init / USB transfer / power
+- **Green for the 8BitDo:** if sustained, it may be an ID other than the known 200F/201B; collect VID/PID instead of guessing
+- **Only blue (no orange/purple):** physical USB host starts but enumeration doesn't finish
+
+Flashing this build does not change the 8BitDo dongle firmware or the ESP32 adapter.
 
 ## Source / release
 
