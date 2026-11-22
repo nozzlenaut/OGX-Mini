@@ -7,6 +7,7 @@
 
 #include "USBHost/HostDriver/XInput/tuh_xinput/tuh_xinput.h"
 #include "USBHost/HostDriver/XInput/tuh_xinput/tuh_xinput_cmd.h"
+#include "USBHost/HostDriver/XInput/EightBitDo3Mode.h"
 
 namespace tuh_xinput {
 
@@ -189,6 +190,23 @@ static bool open(uint8_t rhport, uint8_t dev_addr, tusb_desc_interface_t const *
     {
         itf_type = ItfType::XID;
         dev_type = DevType::XBOXOG;
+    }
+    else
+    {
+        // The Ultimate 3-Mode 2.4GHz receiver may expose a vendor-specific
+        // interface without standard Xbox One subclass/protocol values.
+        // Keep the fallback limited to its known receiver IDs/interface zero.
+        uint16_t vid = 0;
+        uint16_t pid = 0;
+        tuh_vid_pid_get(dev_addr, &vid, &pid);
+        if (EightBitDo3Mode::is_gip_receiver_interface(
+                vid, pid, desc_itf->bInterfaceNumber,
+                desc_itf->bInterfaceClass, desc_itf->bNumEndpoints))
+        {
+            itf_type = ItfType::XID;
+            dev_type = DevType::XBOXONE;
+            TU_LOG1("8BitDo 3-Mode receiver: Xbox One GIP fallback (%04x:%04x)\r\n", vid, pid);
+        }
     }
 
     TU_VERIFY(dev_type != DevType::UNKNOWN && itf_type != ItfType::UNKNOWN);
