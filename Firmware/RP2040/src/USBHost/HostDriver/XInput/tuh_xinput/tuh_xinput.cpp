@@ -169,6 +169,18 @@ static bool open(uint8_t rhport, uint8_t dev_addr, tusb_desc_interface_t const *
     TU_LOG1("XInput Open\r\n");
     TU_VERIFY(desc_itf->bNumEndpoints > 0);
 
+    // Linux xpad claims only the DATA interface (number 0) for Xbox
+    // One GIP devices. Ignore the extra audio/configuration interfaces
+    // of the 8BitDo wireless receiver instead of attempting to open
+    // them as independent gamepads.
+    uint16_t receiver_vid = 0, receiver_pid = 0;
+    tuh_vid_pid_get(dev_addr, &receiver_vid, &receiver_pid);
+    if (EightBitDo3Mode::is_receiver_id(receiver_vid, receiver_pid) &&
+        (desc_itf->bInterfaceNumber != 0 || desc_itf->bNumEndpoints != 2))
+    {
+        return false;
+    }
+
     DevType dev_type = DevType::UNKNOWN;
     ItfType itf_type = ItfType::UNKNOWN;
 
