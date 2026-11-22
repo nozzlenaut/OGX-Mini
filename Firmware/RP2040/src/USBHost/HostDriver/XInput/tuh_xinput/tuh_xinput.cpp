@@ -8,6 +8,7 @@
 #include "USBHost/HostDriver/XInput/tuh_xinput/tuh_xinput.h"
 #include "USBHost/HostDriver/XInput/tuh_xinput/tuh_xinput_cmd.h"
 #include "USBHost/HostDriver/XInput/XboxArcadeStick.h"
+#include "USBHost/HostDriver/XInput/EightBitDo3Mode.h"
 #include "USBHost/HostDriver/VictrixGambit/VictrixGambit.h"
 
 #include "Board/Config.h"
@@ -301,11 +302,22 @@ static bool open(uint8_t rhport, uint8_t dev_addr, tusb_desc_interface_t const *
         uint16_t vid = 0;
         uint16_t pid = 0;
         tuh_vid_pid_get(dev_addr, &vid, &pid);
-        if (desc_itf->bInterfaceNumber == 0 &&
-            XboxArcadeStick::is_xbox_one_gip(vid, pid))
+        // Some 8BitDo 3-Mode 2.4 GHz receivers use a vendor-specific
+        // Xbox One GIP interface without the standard 0x47/0xD0 signature.
+        // Only claim the two documented receiver PIDs and interface zero.
+        const bool arcade_gip = XboxArcadeStick::is_xbox_one_gip(vid, pid);
+        const bool eightbitdo_gip = EightBitDo3Mode::is_gip_receiver_interface(
+            vid, pid, desc_itf->bInterfaceNumber,
+            desc_itf->bInterfaceClass, desc_itf->bNumEndpoints);
+        if (desc_itf->bInterfaceNumber == 0 && (arcade_gip || eightbitdo_gip))
         {
             itf_type = ItfType::XID;
             dev_type = DevType::XBOXONE;
+            if (eightbitdo_gip)
+            {
+                TU_LOG1("8BitDo 3-Mode receiver claimed as Xbox One GIP (%04x:%04x)\r\n",
+                        vid, pid);
+            }
         }
     }
 
