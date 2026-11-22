@@ -12,8 +12,22 @@ void XboxOneHost::initialize(Gamepad& gamepad, uint8_t address, uint8_t instance
 
 void XboxOneHost::process_report(Gamepad& gamepad, uint8_t address, uint8_t instance, const uint8_t* report, uint16_t len)
 {
+    // GIP input reports contain a 4-byte header followed by 14 bytes
+    // of controller state. The old '&prev_in_report_ + 4' advanced four
+    // *structs*, reading out of bounds, and similarly skipped four structs
+    // on the incoming pointer. Compare bytes, not XboxOne::InReport objects.
+    constexpr uint16_t GIP_INPUT_BYTES = 18;
+    constexpr uint16_t GIP_HEADER_BYTES = 4;
+    if (report == nullptr || len < GIP_INPUT_BYTES)
+    {
+        tuh_xinput::receive_report(address, instance);
+        return;
+    }
     const XboxOne::InReport* in_report = reinterpret_cast<const XboxOne::InReport*>(report);
-    if (std::memcmp(&prev_in_report_ + 4, in_report + 4, 14) == 0)
+    if (previous_report_valid_ &&
+        std::memcmp(reinterpret_cast<const uint8_t*>(&prev_in_report_) + GIP_HEADER_BYTES,
+                    report + GIP_HEADER_BYTES,
+                    GIP_INPUT_BYTES - GIP_HEADER_BYTES) == 0)
     {
         tuh_xinput::receive_report(address, instance);
         return;
@@ -48,7 +62,8 @@ void XboxOneHost::process_report(Gamepad& gamepad, uint8_t address, uint8_t inst
     gamepad.set_pad_in(gp_in);
 
     tuh_xinput::receive_report(address, instance);
-    std::memcpy(&prev_in_report_, in_report, 18);
+    std::memcpy(&prev_in_report_, report, GIP_INPUT_BYTES);
+    previous_report_valid_ = true;
 }
 
 bool XboxOneHost::send_feedback(Gamepad& gamepad, uint8_t address, uint8_t instance)
