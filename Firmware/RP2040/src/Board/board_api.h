@@ -9,6 +9,7 @@ namespace board_api {
     void init_bluetooth();
     void reboot();
     void set_led(bool state);
+    void set_rgb(uint8_t r, uint8_t g, uint8_t b); // USB diagnostic LED stages on RP2040 Zero
     uint32_t ms_since_boot();
 
     namespace usb {
