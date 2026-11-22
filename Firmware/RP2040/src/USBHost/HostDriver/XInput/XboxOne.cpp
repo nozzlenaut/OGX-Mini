@@ -61,9 +61,10 @@ void XboxOneHost::process_report(Gamepad& gamepad, uint8_t address, uint8_t inst
 
     gamepad.set_pad_in(gp_in);
 
-    tuh_xinput::receive_report(address, instance);
+    // Save the old frame before rearming USB IN into the same buffer.
     std::memcpy(&prev_in_report_, report, GIP_INPUT_BYTES);
     previous_report_valid_ = true;
+    tuh_xinput::receive_report(address, instance);
 }
 
 bool XboxOneHost::send_feedback(Gamepad& gamepad, uint8_t address, uint8_t instance)
