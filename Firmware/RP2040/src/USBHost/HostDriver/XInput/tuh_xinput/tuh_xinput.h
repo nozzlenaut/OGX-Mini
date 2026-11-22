@@ -35,6 +35,7 @@ SOFTWARE.
 #include "tusb.h"
 #include "host/usbh.h"
 #include "host/usbh_pvt.h"
+#include "USBHost/HostDriver/XInput/EightBitDoXpadGip.h"
 
 namespace tuh_xinput
 {
@@ -64,6 +65,15 @@ namespace tuh_xinput
         ItfType itf_type{ItfType::UNKNOWN};
 
         bool chatpad_inited{false};
+
+        // Only active on 8BitDo Ultimate 3-Mode 2.4GHz receiver IDs.
+        // Linux xpad-style startup packets are scheduled asynchronously,
+        // so pairing/re-enumeration cannot block the PIO USB host.
+        bool is_8bitdo_receiver{false};
+        EightBitDoXpad::InitState xpad_init{};
+        bool mode_ack_pending{false};
+        bool mode_ack_inflight{false};
+        uint8_t mode_ack_seq{0};
         ChatpadStage chatpad_stage{ChatpadStage::INIT_1};
 
         uint8_t dev_addr{0xFF};
@@ -85,6 +95,7 @@ namespace tuh_xinput
 
     bool send_report(uint8_t address, uint8_t instance, const uint8_t* report, uint16_t len);
     bool receive_report(uint8_t address, uint8_t instance);
+    void service_8bitdo_receiver();
     bool set_rumble(uint8_t address, uint8_t instance, uint8_t rumble_l, uint8_t rumble_r, bool block);
     bool set_led(uint8_t address, uint8_t instance, uint8_t led_number, bool block);
 

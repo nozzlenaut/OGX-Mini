@@ -2,7 +2,7 @@ name: Verify OGX-Mini Bluetooth improvements
 
 on:
   pull_request:
-    branches: [master, 'feature/xbox-series-8bitdo-bridge']
+    branches: [master, 'feature/xbox-series-8bitdo-bridge', 'feature/original-wired-8bitdo']
   workflow_dispatch:
 
 # Restart rather than queue obsolete builds whenever the branch changes.
@@ -65,6 +65,11 @@ jobs:
         run: |
           g++ -std=c++17 -Wall -Wextra -Werror -I. tests/test_8bitdo_3mode_usb.cpp -o /tmp/ogx-8bitdo-id-test
           /tmp/ogx-8bitdo-id-test
+
+      - name: Test Linux-xpad-compatible GIP handshake state machine
+        run: |
+          g++ -std=c++17 -Wall -Wextra -Werror -I. tests/test_8bitdo_xpad_gip.cpp -o /tmp/ogx-8bitdo-xpad-gip-test
+          /tmp/ogx-8bitdo-xpad-gip-test
 
       - name: Install ESP-IDF 5.1.5
         uses: espressif/install-esp-idf-action@v1

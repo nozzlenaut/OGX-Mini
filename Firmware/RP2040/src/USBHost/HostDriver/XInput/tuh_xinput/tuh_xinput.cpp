@@ -8,6 +8,7 @@
 #include "USBHost/HostDriver/XInput/tuh_xinput/tuh_xinput.h"
 #include "USBHost/HostDriver/XInput/tuh_xinput/tuh_xinput_cmd.h"
 #include "USBHost/HostDriver/XInput/EightBitDo3Mode.h"
+#include "Board/board_api.h"
 
 namespace tuh_xinput {
 
@@ -168,6 +169,18 @@ static bool open(uint8_t rhport, uint8_t dev_addr, tusb_desc_interface_t const *
     TU_LOG1("XInput Open\r\n");
     TU_VERIFY(desc_itf->bNumEndpoints > 0);
 
+    // Linux xpad claims only the DATA interface (number 0) for Xbox
+    // One GIP devices. Ignore the extra audio/configuration interfaces
+    // of the 8BitDo wireless receiver instead of attempting to open
+    // them as independent gamepads.
+    uint16_t receiver_vid = 0, receiver_pid = 0;
+    tuh_vid_pid_get(dev_addr, &receiver_vid, &receiver_pid);
+    if (EightBitDo3Mode::is_receiver_id(receiver_vid, receiver_pid) &&
+        (desc_itf->bInterfaceNumber != 0 || desc_itf->bNumEndpoints != 2))
+    {
+        return false;
+    }
+
     DevType dev_type = DevType::UNKNOWN;
     ItfType itf_type = ItfType::UNKNOWN;
 
@@ -235,6 +248,11 @@ static bool open(uint8_t rhport, uint8_t dev_addr, tusb_desc_interface_t const *
         interface->itf_type = itf_type;
         interface->dev_type = dev_type;
         interface->dev_addr = dev_addr;
+        uint16_t receiver_vid = 0, receiver_pid = 0;
+        tuh_vid_pid_get(dev_addr, &receiver_vid, &receiver_pid);
+        interface->is_8bitdo_receiver =
+            dev_type == DevType::XBOXONE &&
+            EightBitDo3Mode::is_receiver_id(receiver_vid, receiver_pid);
 
         if (tu_edpt_dir(desc_ep->bEndpointAddress) == TUSB_DIR_OUT)
         {
@@ -273,7 +291,16 @@ static bool set_config(uint8_t dev_addr, uint8_t itf_num)
             wait_for_tx_complete(dev_addr, interface->ep_out);
             break;
         case DevType::XBOXONE:
-            xboxone_init(interface, dev_addr, instance);
+            if (interface->is_8bitdo_receiver)
+            {
+                // Linux xpad sends POWER_ON, LED_ON, AUTH_DONE to 8BitDo.
+                // Schedule after set-config rather than blocking the host.
+                interface->xpad_init.begin(board_api::ms_since_boot());
+            }
+            else
+            {
+                xboxone_init(interface, dev_addr, instance);
+            }
             break;
         default:
             break;
@@ -291,16 +318,42 @@ static bool set_config(uint8_t dev_addr, uint8_t itf_num)
 static bool xfer_cb(uint8_t dev_addr, uint8_t ep_addr, xfer_result_t result, uint32_t xferred_bytes)
 {
     Interface* interface = get_itf_by_ep(dev_addr, ep_addr);
+    TU_VERIFY(interface != nullptr);
     uint8_t instance = get_instance_by_itf_num(dev_addr, interface->itf_num);
-    TU_VERIFY(interface != nullptr && instance != INVALID_IDX);
+    TU_VERIFY(instance != INVALID_IDX);
     
     const uint8_t dir = tu_edpt_dir(ep_addr);
+
+    if (interface->is_8bitdo_receiver && dir == TUSB_DIR_OUT)
+    {
+        if (interface->mode_ack_inflight)
+        {
+            interface->mode_ack_inflight = false;
+            if (result != XFER_RESULT_SUCCESS)
+            {
+                interface->mode_ack_pending = true;
+            }
+        }
+        else if (interface->xpad_init.awaiting_out)
+        {
+            interface->xpad_init.complete_tx(
+                result == XFER_RESULT_SUCCESS, board_api::ms_since_boot());
+        }
+    }
 
     if (result != XFER_RESULT_SUCCESS)
     {
         if (dir == TUSB_DIR_IN)
         {
-            report_received_cb(dev_addr, instance, interface->ep_in_buffer.data(), interface->ep_in_size);
+            if (interface->is_8bitdo_receiver)
+            {
+                // Do not forward a failed/stale USB IN packet to a gamepad.
+                receive_report(dev_addr, instance);
+            }
+            else
+            {
+                report_received_cb(dev_addr, instance, interface->ep_in_buffer.data(), interface->ep_in_size);
+            }
         }
         else if (report_sent_cb)
         {
@@ -358,6 +411,15 @@ static bool xfer_cb(uint8_t dev_addr, uint8_t ep_addr, xfer_result_t result, uin
                 }
                 break;
             case DevType::XBOXONE:
+                if (interface->is_8bitdo_receiver && xferred_bytes >= 5 &&
+                    in_buffer[0] == XboxOne::GIP_CMD_VIRTUAL_KEY &&
+                    in_buffer[1] == (XboxOne::GIP_OPT_ACK | XboxOne::GIP_OPT_INTERNAL))
+                {
+                    // Linux xpad acknowledges guide-button packets so the
+                    // receiver keeps delivering subsequent virtual-key events.
+                    interface->mode_ack_seq = in_buffer[2];
+                    interface->mode_ack_pending = true;
+                }
                 switch (in_buffer[0])
                 {
                     case XboxOne::GIP_CMD_INPUT:
@@ -376,7 +438,14 @@ static bool xfer_cb(uint8_t dev_addr, uint8_t ep_addr, xfer_result_t result, uin
                         }
                         break;
                     case XboxOne::GIP_CMD_ANNOUNCE:
-                        xboxone_init(interface, dev_addr, instance);
+                        // The receiver may send ANNOUNCE while pairing.
+                        // Do not launch the old blocking POWER_ON+S_INIT
+                        // sequence: its Linux-xpad-style init is already
+                        // scheduled in service_8bitdo_receiver().
+                        if (!interface->is_8bitdo_receiver)
+                        {
+                            xboxone_init(interface, dev_addr, instance);
+                        }
                         break;
                 }
                 break;
@@ -430,6 +499,10 @@ void close(uint8_t dev_addr)
             TU_LOG1("XInput unmount\r\n");
             device->interfaces[i].itf_num = 0xFF;
             device->interfaces[i].connected = false;
+            device->interfaces[i].is_8bitdo_receiver = false;
+            device->interfaces[i].mode_ack_inflight = false;
+            device->interfaces[i].mode_ack_pending = false;
+            device->interfaces[i].xpad_init = EightBitDoXpad::InitState{};
         }
     }
 }
@@ -469,6 +542,48 @@ bool send_report(uint8_t dev_addr, uint8_t instance, const uint8_t *buffer, uint
         return false;
     }
     return true;
+}
+
+void service_8bitdo_receiver()
+{
+    const uint32_t now = board_api::ms_since_boot();
+    for (uint8_t address = 1; address <= devices_.size(); ++address)
+    {
+        Device* dev = get_device_by_addr(address);
+        if (dev == nullptr) continue;
+        for (uint8_t instance = 0; instance < dev->interfaces.size(); ++instance)
+        {
+            Interface& itf = dev->interfaces[instance];
+            if (!itf.is_8bitdo_receiver || itf.itf_num == INVALID_IDX ||
+                itf.ep_out == INVALID_IDX || usbh_edpt_busy(address, itf.ep_out))
+            {
+                continue;
+            }
+
+            // Virtual key ACKs have higher priority than init or rumble.
+            if (itf.mode_ack_pending && !itf.mode_ack_inflight &&
+                !itf.xpad_init.awaiting_out)
+            {
+                const auto ack = EightBitDoXpad::mode_ack(itf.mode_ack_seq);
+                if (send_report(address, instance, ack.bytes.data(), ack.length))
+                {
+                    itf.mode_ack_pending = false;
+                    itf.mode_ack_inflight = true;
+                }
+                continue;
+            }
+
+            if (!itf.mode_ack_inflight && itf.xpad_init.ready(now))
+            {
+                auto pkt = EightBitDoXpad::make_packet(
+                    itf.xpad_init.stage, itf.xpad_init.next_serial);
+                if (pkt.length && send_report(address, instance, pkt.bytes.data(), pkt.length))
+                {
+                    itf.xpad_init.submitted();
+                }
+            }
+        }
+    }
 }
 
 bool receive_report(uint8_t dev_addr, uint8_t instance)
@@ -520,6 +635,12 @@ bool set_rumble(uint8_t dev_addr, uint8_t instance, uint8_t rumble_l, uint8_t ru
 {
     Interface* interface = get_itf_by_instance(dev_addr, instance);
     TU_VERIFY(interface != nullptr);
+    // Protect the three-stage GIP initialization from an early rumble OUT.
+    if (interface->is_8bitdo_receiver &&
+        interface->xpad_init.stage != EightBitDoXpad::Stage::COMPLETE)
+    {
+        return true;
+    }
 
     uint8_t buffer[32];
     uint16_t len;
