@@ -1,3 +1,16 @@
+## Blue/green diagnostic correction — 2026-11-22
+
+The prior blue/green cycle was **not definitive evidence of a receiver PID change**. `standard::host_mounted(true)` always set the board LED green, overwriting the orange/purple status from `tuh_mount_cb`. The receiver could have had either expected USB ID or a different one entirely.
+
+This revision modifies only the RP2040 Zero diagnostic target:
+
+- Don't let the generic controller-mounted callback overwrite the diagnostic LED.
+- Do not reboot the entire RP2040 after **any** USB detach while diagnosing. The receiver's actual VID/PID may be unknown or changing, so a VID/PID-specific reboot exception was inadequate.
+- Show **white** for ANY unexpected device ID, regardless of whether an ordinary Xbox driver recognized it.
+- Orange = `2DC8:200F`, purple = `2DC8:201B`, blue = PIO USB host started / device detached, red = USB host waiting for first connection. Green should **not** appear after boot in this diagnostic build; if it does, check that the **latest** `RP2040_ZERO` artifact was flashed.
+
+If blue is the only color, the dongle may be stalling or resetting during enumeration, and further source/serial diagnostics would be needed. Compilation does not establish that pairing or rumble work.
+
 # 8BitDo 3-Mode USB-dongle diagnostic firmware (RP2040 Zero wired version)
 
 This is a **temporary diagnostic build** based on the original OGX-Mini code line (including the previous 8BitDo ID-only patch). It does not modify master or the Bluetooth hybrid's installed firmware.
