@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'none'; form-action 'none'; base-uri 'none'">
+<title>OGX | PS4 credential setup</title>
+<style>
+:root{color-scheme:dark light;font:16px system-ui}body{max-width:650px;margin:3rem auto;padding:0 1.2rem;line-height:1.5}h1{line-height:1.1}label{display:block;margin:1rem 0}input{display:block;margin:.4rem 0}button{padding:.7rem 1rem;font:inherit;margin:.3rem .4rem .3rem 0;cursor:pointer}fieldset{border:1px solid #888;border-radius:8px;margin:1.4rem 0;padding:1rem}#status{white-space:pre-wrap;min-height:3em}small{opacity:.8}
+</style></head><body><h1>OGX • PS4 credential setup</h1>
+<p>Experimental firmware for the <strong>RP2040 Zero + original ESP32 hybrid</strong>, with 2 MiB RP2040 flash. Use only credentials you are authorized to use. This page never sends the files anywhere.</p>
+<fieldset><legend>Credential files</legend>
+<label>RSA private key (key.pem)<input type="file" id="key" accept=".pem"></label>
+<label>Controller serial (serial.txt)<input type="file" id="serial" accept=".txt"></label>
+<label>Controller certificate signature (sig.bin)<input type="file" id="sig" accept=".bin"></label>
+<button id="build" type="button">Validate &amp; create private UF2</button>
+<button id="clear" type="button">Create credential erase UF2</button>
+<p id="status" role="status" aria-live="polite">No files selected.</p></fieldset>
+<h2>Install</h2><ol><li>Flash the matching experimental OGX firmware first. Normal builds will not read this credential sector.</li><li>Put the RP2040 Zero in BOOTSEL mode and copy the generated private UF2 to its RPI-RP2 drive. The separate ESP32 firmware does not require any keys.</li><li>After reboot, select PS4 mode: hold Start + LB + Left for three seconds.</li><li>Test on the console for at least 15 minutes, including reconnecting the controller.</li></ol>
+<p><strong>Important:</strong> the generated UF2 contains your private key components. Do not share it, commit it to GitHub, or upload it to cloud storage. RP2040 flash is not encrypted. The erase UF2 deletes the reserved credential sector only. Browser validation checks format and RSA operations, but cannot verify Sony-issued certificates or console acceptance.</p>
+<script>
+// Local-only RP2040 Zero (2 MiB hybrid) credential image creator.
+// No network, dependency, key storage or telemetry.
+const ADDRESS = 0x101fb000;
+const SECTOR_SIZE = 4096;
+function crc32(bytes) {
+  let c = 0xffffffff;
+  for (const b of bytes) {
+    c ^= b;
+    for(let j=0;j<8;j++) c=(c>>>1)^((c&1)?0xedb88320:0);
+  }
+  return (~c)>>>0;
+}
+const concat=(...a)=>{const o=new Uint8Array(a.reduce((n,b)=>n+b.length,0));let i=0;for(const b of a){o.set(b,i);i+=b.length;}return o;};
+const der=(tag,b)=>{
+  let n=b.length;const l=[];
+  if(n<128)l.push(n);else {const r=[];while(n){r.unshift(n&255);n>>>=8;}l.push(128|r.length,...r);}
+  return concat(Uint8Array.of(tag,...l),b);
+};
+const decode=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
+function pkcs8(pem) {
+  const match=pem.trim().match(/^-----BEGIN (RSA PRIVATE KEY|PRIVATE KEY)-----\s*([A-Za-z0-9+/=\s]+)\s*-----END \1-----$/);
+  if(!match)throw Error("Choose an unencrypted RSA private key (PEM, PKCS#1 or PKCS#8).");
+  let bytes=decode(match[2].replace(/\s/g,""));
+  if(match[1]==="RSA PRIVATE KEY") {
+    const alg=Uint8Array.of(0x30,0x0d,0x06,0x09,0x2a,0x86,0x48,0x86,0xf7,0x0d,0x01,0x01,0x01,0x05,0);
+    bytes=der(0x30,concat(Uint8Array.of(2,1,0),alg,der(4,bytes)));
+  }
+  return bytes;
+}
+function component(s,length) {
+  let b=decode(s.replace(/-/g,"+").replace(/_/g,"/").padEnd(Math.ceil(s.length/4)*4,"="));
+  if(b.length>length)throw Error("Unsupported RSA component size.");
+  const o=new Uint8Array(length);o.set(b,length-b.length);return o;
+}
+async function credentialSector(pem,serialText,sig,subtle=globalThis.crypto.subtle) {
+  const serial=serialText.trim();
+  if(!/^(?:[0-9a-f]{16}|[0-9a-f]{32})$/i.test(serial))throw Error("serial.txt must contain 16 or 32 hexadecimal characters.");
+  // GP2040-CE exports use 16 ASCII hex characters; left-pad to the PS4's 16-byte field.
+  const serial32=serial.padStart(32,"0");
+  if(sig.length!==256 || sig.every(b=>b===0) || sig.every(b=>b===255))throw Error("sig.bin must be a nonempty 256-byte device signature.");
+  const key=await subtle.importKey("pkcs8",pkcs8(pem),{name:"RSA-PSS",hash:"SHA-256"},true,["sign"]);
+  if(key.algorithm.modulusLength!==2048)throw Error("RSA-2048 key required.");
+  const jwk=await subtle.exportKey("jwk",key);
+  const challenge=new Uint8Array(32);
+  const pub=await subtle.importKey("jwk",{kty:"RSA",n:jwk.n,e:jwk.e,ext:true},{name:"RSA-PSS",hash:"SHA-256"},false,["verify"]);
+  const trial=await subtle.sign({name:"RSA-PSS",saltLength:32},key,challenge);
+  if(!await subtle.verify({name:"RSA-PSS",saltLength:32},pub,trial,challenge))throw Error("RSA self-test failed.");
+  const sector=new Uint8Array(SECTOR_SIZE);sector.fill(255);sector.fill(0,0,1024);
+  sector.set([79,71,65,49],0);
+  sector.set(component(jwk.n,256),8);sector.set(component(jwk.e,4),264);
+  sector.set(component(jwk.p,128),268);sector.set(component(jwk.q,128),396);
+  sector.set(Uint8Array.from(serial32.match(/../g),s=>parseInt(s,16)),524);sector.set(sig,540);
+  new DataView(sector.buffer).setUint32(4,crc32(sector.subarray(8,1024)),true);
+  return sector;
+}
+function uf2(sector) {
+  if(sector.length!==SECTOR_SIZE)throw Error("Invalid sector length.");
+  const out=new Uint8Array(16*512), view=new DataView(out.buffer);
+  for(let i=0;i<16;i++){
+    const offset=i*512;
+    [0x0a324655,0x9e5d5157,0x2000,ADDRESS+i*256,256,i,16,0xe48bff56].forEach((x,k)=>view.setUint32(offset+4*k,x,true));
+    out.set(sector.subarray(i*256,(i+1)*256),offset+32);
+    view.setUint32(offset+508,0x0ab16f30,true);
+  }
+  return out;
+}
+function eraseImage(){return uf2(new Uint8Array(SECTOR_SIZE).fill(255));}
+
+const el=id=>document.getElementById(id);
+const status=message=>{el("status").textContent=message;};
+function save(bytes,name){
+ const url=URL.createObjectURL(new Blob([bytes],{type:"application/octet-stream"}));
+ const a=document.createElement("a");a.href=url;a.download=name;a.click();
+ setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+el("build").onclick=async()=>{
+ const b=el("build");b.disabled=true;
+ try {
+   const [k,s,g]=["key","serial","sig"].map(id=>el(id).files[0]);
+   if(!k||!s||!g)throw Error("Select all three files.");
+   if(k.size>8192||s.size>256||g.size!==256)throw Error("Unexpected credential file size.");
+   if(!globalThis.crypto?.subtle)throw Error("Open this HTML locally in a current Chrome or Edge browser.");
+   const [pem,serial,signature]=await Promise.all([k.text(),s.text(),g.arrayBuffer()]);
+   const sector=await credentialSector(pem,serial,new Uint8Array(signature));
+   const image=uf2(sector);
+   save(image,"OGX-PRIVATE-PS4-credentials.uf2");
+   sector.fill(0); image.fill(0);
+   status("Format and RSA self-test passed. Private UF2 created. Flash it using BOOTSEL; console authentication is not yet verified.");
+   ["key","serial","sig"].forEach(id=>el(id).value="");
+ }catch(e){status("Not created: "+e.message);}finally{b.disabled=false;}
+};
+el("clear").onclick=()=>{
+ if(!confirm("Create an erase UF2? Flashing it will remove installed PS4 credentials."))return;
+ save(eraseImage(),"OGX-PS4-erase.uf2");
+ status("Erase UF2 created. Flash it using BOOTSEL to remove the credentials.");
+};
+</script></body></html>

@@ -5,6 +5,9 @@
 #include "Gamepad/MotionImu.h"
 #include "USBDevice/DeviceDriver/PS4/PS4.h"
 #include "Descriptors/PS4Usb.h"
+#if defined(OGXM_PS4_LOCAL_AUTH)
+#include "USBDevice/DeviceDriver/PS4/LocalAuth.h"
+#endif
 
 namespace {
 
@@ -77,6 +80,9 @@ void apply_pad_imu_to_ps4_report(std::array<uint8_t, 64>& rep, const Gamepad::Pa
 
 void PS4Device::initialize()
 {
+#if defined(OGXM_PS4_LOCAL_AUTH)
+	PS4LocalAuth::initialize();
+#endif
 	class_driver_ = {
 		.name = TUD_DRV_NAME("PS4"),
 		.init = hidd_init,
@@ -96,6 +102,9 @@ void PS4Device::initialize()
 void PS4Device::process(const uint8_t idx, Gamepad& gamepad)
 {
 	(void)idx;
+#if defined(OGXM_PS4_LOCAL_AUTH)
+	PS4LocalAuth::service();
+#endif
 	{
 		static bool start_wake_sent = false;
 		static bool start_held = false;
@@ -252,6 +261,20 @@ uint16_t PS4Device::get_report_cb(uint8_t itf, uint8_t report_id, hid_report_typ
 			return n;
 		}
 	} else if (report_type == HID_REPORT_TYPE_FEATURE) {
+#if defined(OGXM_PS4_LOCAL_AUTH)
+		if (PS4LocalAuth::available()) {
+			if (report_id >= 0xf1 && report_id <= 0xf3)
+				return PS4LocalAuth::get(report_id, buffer, reqlen);
+			if (report_id == 0x03) {
+				// Controller-definition feature report, as documented in Joypad OS / GP2040-CE.
+				constexpr uint8_t definition[47] = {0x21,0x27,0x04,0xcf,0x00,0x2c,0x56,0x08,0x00,0x3d,0x00,0xe8,0x03,0x04,0x00,0xff,0x7f,0x0d,0x0d};
+				uint16_t n=static_cast<uint16_t>(std::min<size_t>(reqlen,sizeof(definition)));
+				std::memcpy(buffer, definition, n); return n;
+			}
+		} else if (report_id == 0xf2 && reqlen >= 2) {
+			std::memset(buffer,0,reqlen); buffer[1]=0x10; return reqlen;
+		}
+#endif
 		std::memset(buffer, 0, reqlen);
 		return reqlen;
 	}
@@ -261,6 +284,13 @@ uint16_t PS4Device::get_report_cb(uint8_t itf, uint8_t report_id, hid_report_typ
 void PS4Device::set_report_cb(uint8_t itf, uint8_t report_id, hid_report_type_t report_type, uint8_t const *buffer, uint16_t bufsize)
 {
 	(void)itf;
+#if defined(OGXM_PS4_LOCAL_AUTH)
+	if (report_type == HID_REPORT_TYPE_FEATURE) {
+		if(report_id == 0xf0) PS4LocalAuth::receive(buffer, bufsize);
+		else if(report_id == 0xf3) PS4LocalAuth::reset();
+		return;
+	}
+#endif
 	if (report_type != HID_REPORT_TYPE_OUTPUT) {
 		return;
 	}
