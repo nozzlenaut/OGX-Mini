@@ -34,7 +34,9 @@ function component(s,length) {
 }
 export async function credentialSector(pem,serialText,sig,subtle=globalThis.crypto.subtle) {
   const serial=serialText.trim();
-  if(!/^[0-9a-f]{32}$/i.test(serial))throw Error("serial.txt must contain exactly 32 hexadecimal characters.");
+  if(!/^(?:[0-9a-f]{16}|[0-9a-f]{32})$/i.test(serial))throw Error("serial.txt must contain 16 or 32 hexadecimal characters.");
+  // GP2040-CE exports use 16 ASCII hex characters; left-pad to the PS4's 16-byte field.
+  const serial32=serial.padStart(32,"0");
   if(sig.length!==256 || sig.every(b=>b===0) || sig.every(b=>b===255))throw Error("sig.bin must be a nonempty 256-byte device signature.");
   const key=await subtle.importKey("pkcs8",pkcs8(pem),{name:"RSA-PSS",hash:"SHA-256"},true,["sign"]);
   if(key.algorithm.modulusLength!==2048)throw Error("RSA-2048 key required.");
@@ -47,7 +49,7 @@ export async function credentialSector(pem,serialText,sig,subtle=globalThis.cryp
   sector.set([79,71,65,49],0);
   sector.set(component(jwk.n,256),8);sector.set(component(jwk.e,4),264);
   sector.set(component(jwk.p,128),268);sector.set(component(jwk.q,128),396);
-  sector.set(Uint8Array.from(serial.match(/../g),s=>parseInt(s,16)),524);sector.set(sig,540);
+  sector.set(Uint8Array.from(serial32.match(/../g),s=>parseInt(s,16)),524);sector.set(sig,540);
   new DataView(sector.buffer).setUint32(4,crc32(sector.subarray(8,1024)),true);
   return sector;
 }
