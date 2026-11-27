@@ -5,7 +5,7 @@
 <style>
 :root{color-scheme:dark light;font:16px system-ui}body{max-width:650px;margin:3rem auto;padding:0 1.2rem;line-height:1.5}h1{line-height:1.1}label{display:block;margin:1rem 0}input{display:block;margin:.4rem 0}button{padding:.7rem 1rem;font:inherit;margin:.3rem .4rem .3rem 0;cursor:pointer}fieldset{border:1px solid #888;border-radius:8px;margin:1.4rem 0;padding:1rem}#status{white-space:pre-wrap;min-height:3em}small{opacity:.8}
 </style></head><body><h1>OGX • PS4 credential setup</h1>
-<p>Experimental firmware for the <strong>RP2040 Zero + original ESP32 hybrid</strong>, with 2 MiB RP2040 flash. Only use credentials from your own controller. This page never sends the files anywhere.</p>
+<p>Experimental firmware for the <strong>RP2040 Zero + original ESP32 hybrid</strong>, with 2 MiB RP2040 flash. Use only credentials you are authorized to use. This page never sends the files anywhere.</p>
 <fieldset><legend>Credential files</legend>
 <label>RSA private key (key.pem)<input type="file" id="key" accept=".pem"></label>
 <label>Controller serial (serial.txt)<input type="file" id="serial" accept=".txt"></label>
@@ -52,7 +52,9 @@ function component(s,length) {
 }
 async function credentialSector(pem,serialText,sig,subtle=globalThis.crypto.subtle) {
   const serial=serialText.trim();
-  if(!/^[0-9a-f]{32}$/i.test(serial))throw Error("serial.txt must contain exactly 32 hexadecimal characters.");
+  if(!/^(?:[0-9a-f]{16}|[0-9a-f]{32})$/i.test(serial))throw Error("serial.txt must contain 16 or 32 hexadecimal characters.");
+  // GP2040-CE exports use 16 ASCII hex characters; left-pad to the PS4's 16-byte field.
+  const serial32=serial.padStart(32,"0");
   if(sig.length!==256 || sig.every(b=>b===0) || sig.every(b=>b===255))throw Error("sig.bin must be a nonempty 256-byte device signature.");
   const key=await subtle.importKey("pkcs8",pkcs8(pem),{name:"RSA-PSS",hash:"SHA-256"},true,["sign"]);
   if(key.algorithm.modulusLength!==2048)throw Error("RSA-2048 key required.");
@@ -65,7 +67,7 @@ async function credentialSector(pem,serialText,sig,subtle=globalThis.crypto.subt
   sector.set([79,71,65,49],0);
   sector.set(component(jwk.n,256),8);sector.set(component(jwk.e,4),264);
   sector.set(component(jwk.p,128),268);sector.set(component(jwk.q,128),396);
-  sector.set(Uint8Array.from(serial.match(/../g),s=>parseInt(s,16)),524);sector.set(sig,540);
+  sector.set(Uint8Array.from(serial32.match(/../g),s=>parseInt(s,16)),524);sector.set(sig,540);
   new DataView(sector.buffer).setUint32(4,crc32(sector.subarray(8,1024)),true);
   return sector;
 }
