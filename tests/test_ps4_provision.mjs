@@ -8,6 +8,7 @@ const pair=generateKeyPairSync("rsa",{modulusLength:2048,publicExponent:65537});
 const pem8=pair.privateKey.export({type:"pkcs8",format:"pem"});
 const pem1=pair.privateKey.export({type:"pkcs1",format:"pem"});
 const serial="00112233445566778899aabbccddeeff";
+const shortSerial="8899aabbccddeeff";
 const sig=randomBytes(256); // synthetic certificate bytes; NOT real credentials
 const build=pem=>credentialSector(pem,serial,sig,webcrypto.subtle);
 test("PKCS#1 and PKCS#8 generate the same layout, including prime factors",async()=>{
@@ -20,6 +21,12 @@ test("PKCS#1 and PKCS#8 generate the same layout, including prime factors",async
  assert.deepEqual(Buffer.from(a.subarray(8,264)),Buffer.from(jwk.n,"base64url"));
  assert.deepEqual(Buffer.from(a.subarray(268,396)),Buffer.from(jwk.p,"base64url"));
  assert.deepEqual(Buffer.from(a.subarray(396,524)),Buffer.from(jwk.q,"base64url"));
+});
+test("GP2040-CE 16-character serial is left-padded to 16-byte identity",async()=>{
+ const a=await credentialSector(pem8,shortSerial,sig,webcrypto.subtle);
+ const b=await build(pem8);
+ assert.deepEqual(a,b);
+ assert.deepEqual(Buffer.from(a.subarray(524,540)),Buffer.from(serial,"hex"));
 });
 test("bad key, serial, signature and wrong RSA size are refused",async()=>{
  await assert.rejects(build("not a key"));
