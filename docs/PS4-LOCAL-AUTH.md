@@ -5,7 +5,7 @@ Only provision authentication credentials from a controller you own. No credenti
 ## Install
 
 1. Build the `ESP32_BLUEPAD32_I2C` RP2040 firmware from this branch; it is the only supported auth target and assumes a 2 MiB RP2040 flash chip. Use the matching ESP32 firmware (no key storage on ESP32).
-2. Download `docs/ps4-auth.html` and open it locally in Chrome or Edge. It is a standalone HTML file, not an online upload service. Select an unencrypted RSA-2048 PKCS#1 or PKCS#8 PEM, the corresponding 32-character hex serial, and 256-byte certificate signature.
+2. Download `docs/ps4-auth.html` and open it locally in Chrome or Edge. It is a standalone HTML file, not an online upload service. Select an unencrypted RSA-2048 PKCS#1 or PKCS#8 PEM, the corresponding 16-character GP2040-CE-style (left-zero-padded) or 32-character hex serial, and 256-byte certificate signature.
 3. The page checks format and signs/verifies a synthetic challenge locally, then creates `OGX-PRIVATE-PS4-credentials.uf2`. Put your RP2040 in BOOTSEL and copy the file onto RPI-RP2. This is a separate credential-only flash operation, not a firmware replacement. Do not share this file; delete it from Downloads when finished.
 4. Reboot, select PS4 (Start + LB + Left for three seconds), attach via USB and test. The original controller or authenticator is not needed during gameplay if the local credential implementation is accepted by the console.
 5. The erase button produces a UF2 that erases only the credential sector. Normal application firmware builds are checked not to overlap it.
