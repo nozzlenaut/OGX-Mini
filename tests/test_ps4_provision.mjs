@@ -24,9 +24,10 @@ test("PKCS#1 and PKCS#8 generate the same layout, including prime factors",async
 });
 test("GP2040-CE 16-character serial is left-padded to 16-byte identity",async()=>{
  const a=await credentialSector(pem8,shortSerial,sig,webcrypto.subtle);
- const b=await build(pem8);
+ const padded=shortSerial.padStart(32,"0");
+ const b=await credentialSector(pem8,padded,sig,webcrypto.subtle);
  assert.deepEqual(a,b);
- assert.deepEqual(Buffer.from(a.subarray(524,540)),Buffer.from(serial,"hex"));
+ assert.deepEqual(Buffer.from(a.subarray(524,540)),Buffer.from(padded,"hex"));
 });
 test("bad key, serial, signature and wrong RSA size are refused",async()=>{
  await assert.rejects(build("not a key"));
